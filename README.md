@@ -1,4 +1,4 @@
-# DeepSensing
+# mlgis-ponds
 
 Deep learning pipeline for detecting irrigation ponds in satellite imagery. Built for my PhD dissertation studying how trade affects agricultural development in Mexico.
 
@@ -10,7 +10,7 @@ This toolkit uses U-Net segmentation models to identify irrigation infrastructur
 
 1. **Data Download** (`01_downloads_gee_sentinel2.py`) - Export annual composites from Google Earth Engine
 2. **Preprocessing** (`02_preproc.py`) - Cloud masking, tiling, and TFRecord creation
-3. **Training** (`03_main.py`) - U-Net model training with host-aware configuration
+3. **Training** (`03_main.py`) - CNN (U-Net) model training and evaluation
 
 ## Project Structure
 
