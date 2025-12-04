@@ -6,6 +6,15 @@ Deep learning pipeline for detecting irrigation ponds in satellite imagery. Buil
 
 This toolkit uses U-Net segmentation models to identify irrigation infrastructure (ponds) in Sentinel-2 and Landsat imagery. The detected ponds are aggregated to census enumeration areas to build a panel dataset of agricultural investment.
 
+## Setup
+
+Create the `mlgis` conda environment:
+
+```bash
+conda env create -f config/mlgis.yaml
+conda activate mlgis
+```
+
 ## Pipeline Stages
 
 1. **Data Download** (`01_downloads_gee_sentinel2.py`) - Export annual composites from Google Earth Engine
@@ -17,7 +26,8 @@ This toolkit uses U-Net segmentation models to identify irrigation infrastructur
 ```
 mlgis-ponds/
 ├── config/
-│   └── config.yaml          # Paths and hyperparameters per host
+│   ├── config.yaml          # Paths and hyperparameters per host
+│   └── mlgis.yaml           # Conda environment specification
 ├── src/
 │   ├── 01_downloads_gee_sentinel2.py
 │   ├── 02_preproc.py
@@ -35,6 +45,8 @@ mlgis-ponds/
 ## Usage
 
 ```bash
+conda activate mlgis
+
 # Preprocess imagery
 python src/02_preproc.py
 

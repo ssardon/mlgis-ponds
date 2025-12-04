@@ -1,0 +1,47 @@
+name: mlgis
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.11
+  - pip
+  - psutil
+
+  # geo / raster
+  - affine
+  - fiona
+  - gdal
+  - geopandas
+  - geotiff
+  - proj
+  - pyproj
+  - rasterio
+  - rtree
+  - shapely
+  - opencv
+
+  # data wrangling
+  - numpy
+  - tqdm
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - pyyaml
+
+  # compression libs
+  - zlib
+  - libopenblas
+  - libtiff
+  - libpng
+
+  # pip packages
+  - pip:
+      - earthengine-api
+      - tensorflow
+      - tf-keras
+      - keras-cv
+      - albumentations
+      - h5py
