@@ -33,8 +33,8 @@ import ee
 PROJECT_ID = 'mlgis-ponds' # GEE project ID (must create before running)
 COUNTRY = 'Mexico'
 STATE = 'Michoacan'
-START_YEAR = 2019
-END_YEAR = 2019
+START_YEAR = 2024
+END_YEAR = 2024
 FOLDER_NAME_PREFIX = 'GoogleEarthEngine_MexMichoacan'
 SCALE = 10 # Export resolution in meters
 
