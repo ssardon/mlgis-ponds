@@ -4,7 +4,7 @@ Deep learning pipeline for detecting irrigation ponds in satellite imagery. This
 
 ## Motivation
 
-Irrigation ponds are a key form of agricultural capital investment, yet no systematic data exists on their spatial distribution or temporal evolution. This project uses convolutional neural networks to detect ponds in satellite imagery, enabling the construction of panel datasets that track agricultural investment at fine geographic scales.
+Irrigation infrastructure, especially for cash crop agriculture, is a key form of agricultural capital investment, yet little systematic data exists on their spatial distribution, especially over the long-run. This project uses convolutional neural networks to detect ponds in satellite imagery, enabling the construction of panel datasets that track agricultural intensification through private investment at fine geographic scales. As of December 4, 2025, the published codebase generates a dataset covering the 2019-2024 period based on Sentinel-2 imagery. Over the following weeks, a more complete version will be released which also uses Landsat-5, Landsat-7, Landsat-8, and Harmonized Landsat-Sentinel (HLS) to extend the dataset to the 1985-2024 period.
 
 ## Results
 
