@@ -1,0 +1,13 @@
+earthengine-api
+geopandas
+keras-cv
+matplotlib
+numpy
+pyyaml
+rasterio
+scikit-learn
+scipy
+shapely
+tensorflow
+tf-keras
+tqdm

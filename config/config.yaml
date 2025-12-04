@@ -1,0 +1,371 @@
+version: 20251017
+HOSTS:
+  mac:
+    proj_data: /Users/Sebastian/miniforge3/envs/mlgis/lib/python3.11/site-packages/pyproj/proj_dir/share/proj
+    config_file: /Users/Sebastian/Dropbox/mlgis/config/config.yaml
+    diagnostics_dir: /Users/Sebastian/diagnostics
+    cache_dir: /Users/Sebastian/Dropbox/JMP/data/temp
+    mines:
+      root: /Users/Sebastian/Dropbox/AgriculturalProductivityTrends/ExternalFiles/mine-maps
+      labels_folder: /Users/Sebastian/Dropbox/AgriculturalProductivityTrends/ExternalFiles/mine-maps/in/ManualLabelling/RA_labels_proc
+      proc_folder: /Users/Sebastian/Dropbox/AgriculturalProductivityTrends/ExternalFiles/mine-maps/in/proc
+      border_shapefile: /Users/Sebastian/Dropbox/AgriculturalProductivityTrends/ExternalFiles/mine-maps/in/Africa Subnational Borders/nga_admbnda_adm0_osgof_20190417.shp
+      grid_shapefile: /Users/Sebastian/Dropbox/AgriculturalProductivityTrends/ExternalFiles/mine-maps/in/proc/s2-mines_grid_halfdeg.shp
+    avocados:
+      root: /Users/Sebastian/Dropbox/JMP
+      raw_folder: /Users/Sebastian/Dropbox/JMP/data/Remotely Sensed Ponds/Ario Train 1/raw
+      border_shapefile: /Users/Sebastian/Dropbox/JMP/data/Mexico Maps/MexicoStates/Michoacan.shp
+      grid_shapefile: /Users/Sebastian/Dropbox/JMP/data/Remotely Sensed Ponds/aux/michoacan_grid_halfdeg.shp
+      planet_raw_folder: /Users/Sebastian/Dropbox/JMP/data/Remotely Sensed Ponds/Planet/raw
+      orto_1995_input: /Users/Sebastian/Dropbox/JMP/data/Mexico Maps/INEGI Ortoimagenes/1995
+      orto_1995_output: /Users/Sebastian/Dropbox/JMP/data/Remotely Sensed Ponds/Ario Train 1/proc/1995-Oimg/chunk_1995.tif
+      labels_folder: /Users/Sebastian/Dropbox/JMP/data/Remotely Sensed Ponds/Ario Train 1
+      ario_boundary: /Users/Sebastian/Dropbox/JMP/data/Mexico Maps/muni_2010gw_c/Ario.shp
+      proc_folder: /Users/Sebastian/Dropbox/JMP/data/Remotely Sensed Ponds/Ario Train 1/proc
+      census_areas: /Users/Sebastian/Dropbox/JMP/data/Mexico Maps/ADC Maps James Sayre/AMCA16/census_areas.shp
+      ejidos_shapefile: /Users/Sebastian/Dropbox/JMP/data/Mexico Maps/Ejidos Maps/Raw Data (Ejidos of Mexico DataBasin)/data/commondata/ejidos_wgs84georepmex/ejidos_wgs84_geo.shp
+      water_shp_dir: /Users/Sebastian/Dropbox/JMP/data/Remotely Sensed Ponds/aux/filter/water_shp #Per-chunk buffered water shapefiles (output of src/gis/prebuild_water_buffers.py)
+      water_mask_dir: /Users/Sebastian/Dropbox/JMP/data/Remotely Sensed Ponds/aux/filter/water_tif #Per-chunk water masks (output of src/gis/prebuild_water_buffers.py, used by src/05_postproc_EA.py)
+      boundary_mask_dir: /Users/Sebastian/Dropbox/JMP/data/Remotely Sensed Ponds/aux/filter/bound_tif
+  quest:
+    proj_data: ''
+    config_file: /projects/p32315/avocado-ponds/config/config.yaml
+    diagnostics_dir: /projects/p32315/diagnostics
+    cache_dir: /projects/p32315/avocado-ponds/temp
+    mines:
+      root: /projects/p32315/mine-maps
+      raw_folder: /projects/p32315/mine-maps/in/raw
+      labels_folder: /projects/p32315/mine-maps/in/ManualLabelling/RA_labels_proc
+      cache_dir: /projects/p32315/mine-maps/temp
+      proc_folder: /projects/p32315/mine-maps/in/proc
+      border_shapefile: /projects/p32315/mine-maps/in/Africa Subnational Borders/nga_admbnda_adm0_osgof_20190417.shp
+      grid_shapefile: /projects/p32315/mine-maps/temp/nigeria_grid_halfdeg.shp
+    avocados:
+      root: /projects/p32315/avocado-ponds
+      raw_folder: /scratch/ssn7779/avocado-ponds/raw
+      temp_dir: /projects/p32315/avocado-ponds/temp
+      border_shapefile: /projects/p32315/avocado-ponds/CNN Inputs/aux/Michoacan.shp
+      grid_shapefile: /projects/p32315/avocado-ponds/CNN Inputs/aux/michoacan_grid_halfdeg.shp
+      planet_raw_folder: /scratch/ssn7779/planet/raw
+      labels_folder: /projects/p32315/avocado-ponds/CNN Inputs/Ario Train 1
+      ario_boundary: /projects/p32315/avocado-ponds/CNN Inputs/Ario Train 1/Ario.shp
+      proc_folder: /scratch/ssn7779/avocado-ponds/proc
+      census_areas: /projects/p32315/avocado-ponds/CNN Inputs/AMCA/census_areas.shp
+      ejidos_shapefile: /projects/p32315/avocado-ponds/CNN Inputs/Ario Train 1/ejidos_wgs84georepmex/ejidos_wgs84_geo.shp
+      water_shp_dir: /projects/p32315/avocado-ponds/CNN Inputs/aux/filter/water_shp
+      water_mask_dir: /projects/p32315/avocado-ponds/CNN Inputs/aux/filter/water_tif
+      boundary_mask_dir: /projects/p32315/avocado-ponds/CNN Inputs/aux/filter/bound_tif
+  farm:
+    proj_data: ''
+    config_file: /group/jsayregrp/Sebastian/avocados/config/config.yaml
+    diagnostics_dir: /group/jsayregrp/Sebastian/diagnostics
+    cache_dir: /group/jsayregrp/Sebastian/avocados/temp
+    mines:
+      root: /group/jsayregrp/Sebastian/templab
+      labels_folder: /group/jsayregrp/Sebastian/templab
+      proc_folder: /group/jsayregrp/Sebastian/temp
+    avocados:
+      root: /group/jsayregrp/Sebastian/avocados
+      raw_folder: /group/jsayregrp/Sebastian/avocados/raw
+      border_shapefile: /group/jsayregrp/Sebastian/avocados/labels/Michoacan.shp
+      grid_shapefile: /group/jsayregrp/Sebastian/avocados/labels/michoacan_grid_halfdeg.shp
+      labels_folder: /group/jsayregrp/Sebastian/avocados/labels
+      ario_boundary: /group/jsayregrp/Sebastian/avocados/labels/Ario.shp
+      proc_folder: /group/jsayregrp/Sebastian/avocados/proc
+      census_areas: /group/jsayregrp/Sebastian/avocados/labels/AMCA/census_areas.shp
+      ejidos_shapefile: /group/jsayregrp/Sebastian/avocados/labels/ejidos_wgs84georepmex/ejidos_wgs84_geo.shp
+      water_shp_dir: /group/jsayregrp/Sebastian/avocados/labels/filter/water_shp
+      water_mask_dir: /group/jsayregrp/Sebastian/avocados/labels/filter/water_tif
+      boundary_mask_dir: /group/jsayregrp/Sebastian/avocados/labels/filter/bound_tif
+GLOBAL:
+  batch_size: 32
+  batch_size_inf: 512
+  stride_ratio: 0.5
+  neg_downsample: true
+  num_epochs: 150
+  patience: 20
+  buffer_radius: 100
+  quick_patches: 128
+  quick_epochs: 5
+  cpu_mode: false
+  use_tensorboard: false
+  ONLY_Ario: true
+  debug_mode: false
+  mask_dilation_train: 0
+  mask_dilation_val: 0
+  overwrite_cache: true  # Keep existing cached TFRecords
+  loss_params:
+    gamma: 1.33333
+    alpha: 0.7
+    beta: 0.3
+    label_smoothing: 0
+  ARCHITECTURE_HPARAMS: #Nparams scales quadtratically with base_filters --
+    unet:
+      learning_rate: 5e-5
+    unet_tiny:
+      learning_rate: 5e-5
+      base_filters: 4 #c. 6,800 params -- if base_filters = X, then params proportional to X^2 (*INTUITION:* the first conv layer maps N bands to these many (X) channels; say N bands = 3, then we need a p*p conv to map images from 3-band to X-band, requiring p*p*3*X where p is kernel size in pixels (size of the sliding window travelling across patches, typically p = 3); this happens over L layers in the encoder and then again over L layers in the decoder. on each layer k, we have 2^k*X channels, so the convs to move from filter (k-1) to (k) have approximately p*p*2^(2k-1)*X^2 params)
+      depth: 2
+    unet_medium:
+      learning_rate: 5e-5
+      base_filters: 16 #c. 108,000 params
+      depth: 3
+    unet_ultra_heavy:
+      base_filters: 512  #c. 444M params
+      depth: 4
+    unet_heavy:
+      learning_rate: 5e-5
+      base_filters: 64 #c. 28M params
+      depth: 4
+    resnet50_unet:
+      learning_rate: 5e-5
+    segformer_b0:
+      learning_rate: 5e-5
+    segformer_improved:
+      learning_rate: 5e-7
+BANDS:
+  s2_nir: &s2_nir
+  - 7
+  - 2
+  - 12
+  s2_rgb: &s2_rgb
+  - 3
+  - 2
+  - 1
+  s2_rgbplus: &s2_rgbplus
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  hls_nir: &hls_nir
+  - 3
+  - 5
+  - 6
+  hls_rgb: &hls_rgb
+  - 3
+  - 2
+  - 1
+  l5_nir: &l5_nir
+  - 2  # Green
+  - 4  # NIR
+  - 5  # SWIR1
+  - 6  # SWIR2 (L5 Band 7)
+  l5_all: &l5_all
+  - 1  # Blue
+  - 2  # Green
+  - 3  # Red
+  - 4  # NIR
+  - 5  # SWIR1
+  - 7  # NDVI
+  - 8  # MNDWI
+  l5_water: &l5_water
+  - 2  # Green (water reflection)
+  - 4  # NIR (low in water)
+  - 5  # SWIR1 (absorbed by water)
+  - 7  # NDVI (negative for water)
+  - 8  # MNDWI (positive for water)
+  l5_rgb: &l5_rgb
+  - 3
+  - 2
+  - 1
+  s2_mines_optimal: &s2_mines_optimal
+  # Optimal bands for mine detection: B8 (NIR), B12 (SWIR2), NBR index, B3 (Green)
+  # NBR = (B8-B12)/(B8+B12) will be computed as band 13
+  - 8   # B8: NIR (10m) - vegetation vs bare earth
+  - 12  # B12: SWIR2 (20m) - moisture & minerals
+  - 13  # NBR index (computed) - disturbance indicator
+  - 3   # B3: Green (10m) - visible brightness anchor
+TASKS:
+  mines:
+    pos_weight: 15  # Reduced from 50 since using balanced sampling (50% positive patches)
+    neg_ratio: 10
+    loss_function: weighted_bce
+    architecture: unet_heavy  # Larger model with more capacity for 12-band input
+    hparam_overrides:
+      learning_rate: 1e-6
+    bands: *s2_rgbplus  # All 12 S2 bands
+    # ALTERNATIVE: Optimal 4 bands for mine detection (uncomment to use):
+    # bands: *s2_mines_optimal  # B8 (NIR), B12 (SWIR2), NBR index, B3 (Green)
+    patch_size: 128
+    use_multi_chunk: false
+    imagery_folder: 2024-S2
+    # Original training chunks (COMMENTED OUT):
+    # - chunk_2_5.tif
+    # - chunk_7_6.tif
+    # - chunk_12_12.tif
+    # - chunk_10_9.tif
+    # - chunk_2_6.tif
+
+    # Restricted to specific region only:
+    train_img:
+    - chunk_2_5.tif
+    - chunk_2_6.tif
+    # Restricted validation:
+    val_img:
+    - chunk_1_5.tif
+    test_img:
+    - chunk_1_5.tif
+    labels_file: merged_polygons.shp
+  orchards:
+    architecture: unet_tiny
+    pos_weight: 5
+    neg_ratio: 2
+    loss_function: weighted_bce
+    use_multi_chunk: false
+    train_img: chunk_4_2.tif
+    val_img: chunk_3_2.tif
+    test_img: chunk_3_2.tif
+    bands: *s2_rgb
+    imagery_folder: s2_2024
+    labels_file: avo_full_kml_and_point_rewinded.shp
+  OldFromNew_LS96:
+    task_type: classifier
+    architecture: unet_heavy
+    pos_weight: 5
+    loss_function: weighted_bce
+    learning_rate: 5e-4  # SOTA (hp_run_3: 0.9203 AUC)
+    patch_size: 8
+    bands: [2, 4, 5, 7]  # Green, NIR, SWIR1, NDVI (SOTA from 255-band sweep: AUC=0.9199)
+    imagery_folder: 1996-L5
+    labels_file: Ario_PoolsLabeled_05Oct2025.shp  # All 2024 sites (1841 total)
+    labels_file_1996: poolstemp1995subsetv10.shp  # Sites that existed in 1996 (372 total)
+    hard_negatives_file: OldFromNew_HN/OldFromNew_HN.shp  # 60 manually selected false positives (currently disabled)
+    diagnostic_csv: ario_1996_model_classifier_diagnosis.csv
+  OldFromNew_LS96_temporal:
+    task_type: classifier
+    architecture: unet_medium
+    pos_weight: 5
+    loss_function: weighted_bce
+    learning_rate: 5e-4
+    patch_size: 8
+    bands: [2, 4, 5, 6, 10, 12, 13, 14]  # 1996: [Green, NIR, SWIR1, SWIR2] + 1995: [Green, NIR, SWIR1, SWIR2] (8 bands total, Mode B: NO precomputed indices)
+    imagery_folder: proc_stack/1996-L5  # Stacked 1996+1995 imagery
+    labels_file: Ario_PoolsLabeled_05Oct2025.shp
+    labels_file_1996: poolstemp1995subsetv10.shp
+    hard_negatives_file: OldFromNew_HN/OldFromNew_HN.shp
+    diagnostic_csv: ario_1996_temporal_model_classifier_diagnosis.csv
+  OldFromNew_LS96_temporal_allbands:
+    task_type: classifier
+    architecture: unet_medium
+    pos_weight: 5
+    loss_function: weighted_bce
+    learning_rate: 5e-4
+    patch_size: 8
+    bands: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]  # ALL 16 bands: 8 from 1996 + 8 from 1995 (includes raw bands + computed indices)
+    imagery_folder: ../proc_stack/1996-L5  # Stacked 1996+1995 imagery (in /scratch/ssn7779/avocado-ponds/proc_stack)
+    labels_file: Ario_PoolsLabeled_05Oct2025.shp
+    labels_file_1996: poolstemp1995subsetv10.shp
+    hard_negatives_file: OldFromNew_HN/OldFromNew_HN.shp
+    diagnostic_csv: ario_1996_temporal_allbands_model_classifier_diagnosis.csv
+  OldFromNew_LS96_1996only_8bands:
+    task_type: classifier
+    architecture: unet_medium
+    pos_weight: 5
+    loss_function: weighted_bce
+    learning_rate: 5e-4
+    patch_size: 8
+    bands: [1, 2, 3, 4, 5, 6, 7, 8]  # Only 8 bands from 1996 (raw bands + computed indices)
+    imagery_folder: ../proc_stack/1996-L5  # Stacked 1996+1995 imagery (in /scratch/ssn7779/avocado-ponds/proc_stack)
+    labels_file: Ario_PoolsLabeled_05Oct2025.shp
+    labels_file_1996: poolstemp1995subsetv10.shp
+    hard_negatives_file: OldFromNew_HN/OldFromNew_HN.shp
+    diagnostic_csv: ario_1996_8bands_model_classifier_diagnosis.csv
+  pondsNIR-S2024:
+    architecture: unet_tiny
+    pos_weight: 15
+    neg_ratio: 1
+    loss_function: weighted_bce
+    bands: *s2_nir
+    patch_size: 128
+    use_multi_chunk: false
+    train_img: chunk_4_2.tif
+    val_img: chunk_3_2.tif
+    val_chunks: [chunk_3_2]  # For inference-style validation
+    test_img: chunk_3_2.tif
+    labels_file: Ario_PoolsLabeled_05Oct2025.shp
+    imagery_folder: 2024-S2
+  pondsNIR-L2024:
+    architecture: unet_tiny
+    pos_weight: 50
+    neg_ratio: 2
+    loss_function: weighted_bce
+    patch_size: 128
+    use_multi_chunk: false
+    train_img: chunk_4_2.tif
+    val_img: chunk_3_2.tif
+    test_img: chunk_3_2.tif
+    labels_file: Ario_PoolsLabeled_05Oct2025.shp
+    imagery_folder: 2024-HLS-L
+    bands: *hls_nir
+  pondsNIR-L1996:
+    architecture: unet_tiny
+    pos_weight: 50
+    neg_ratio: 2
+    loss_function: weighted_bce
+    use_multi_chunk: false
+    train_img: chunk_4_2.tif
+    val_img: chunk_3_2.tif
+    test_img: chunk_3_2.tif
+    bands: *l5_nir
+    imagery_folder: 1996-L5
+    labels_file: poolstemp1995subsetv7.shp
+  pondsRGB-S2024:
+    architecture: unet_tiny
+    pos_weight: 15
+    neg_ratio: 1
+    loss_function: weighted_bce
+    bands: *s2_rgb
+    patch_size: 128
+    use_multi_chunk: false
+    train_img: chunk_4_2.tif
+    val_img: chunk_3_2.tif
+    test_img: chunk_3_2.tif
+    labels_file: Ario_PoolsLabeled_05Oct2025.shp
+    imagery_folder: 2024-S2
+  pondsRGB-L2024:
+    architecture: unet_tiny
+    pos_weight: 50
+    neg_ratio: 2
+    loss_function: weighted_bce
+    patch_size: 128
+    use_multi_chunk: false
+    train_img: chunk_4_2.tif
+    val_img: chunk_3_2.tif
+    test_img: chunk_3_2.tif
+    labels_file: Ario_PoolsLabeled_05Oct2025.shp
+    imagery_folder: 2024-HLS-L
+    bands: *hls_rgb
+  pondsRGB-L1996:
+    architecture: unet_tiny
+    pos_weight: 50
+    neg_ratio: 2
+    loss_function: weighted_bce
+    use_multi_chunk: false
+    train_img: chunk_4_2.tif
+    val_img: chunk_3_2.tif
+    test_img: chunk_3_2.tif
+    bands: *l5_rgb
+    imagery_folder: 1996-L5
+    labels_file: poolstemp1995subsetv7.shp
+  pondsRGBplus-S2024:
+    architecture: unet_tiny
+    pos_weight: 5
+    neg_ratio: 1
+    loss_function: weighted_bce
+    bands: *s2_rgbplus
+    patch_size: 128
+    use_multi_chunk: false
+    train_img: chunk_4_2.tif
+    val_img: chunk_3_2.tif
+    test_img: chunk_3_2.tif
+    labels_file: Ario_PoolsLabeled_05Oct2025.shp
+    imagery_folder: 2024-S2
+    model_path: /Users/Sebastian/Dropbox/JMP/out/mlgis_output/pondsRGBPlus-S2024/run_20250810-171606/best_model.h5
