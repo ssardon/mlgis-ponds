@@ -17,7 +17,7 @@ Key Capabilities:
       and pixel-level metrics (Precision/Recall/F1).
     - Inference Validation: Runs a secondary validation loop using
       inference-style sliding windows to determine optimal thresholds.
-    - Reproducibility: Enforces global seeding and environment isolation.
+    - Reproducibility: Enforces global seeding and environment isolation
 
 Usage:
     #1. Standard Training (Local)
@@ -32,7 +32,6 @@ Usage:
 
 import json
 import os
-import shutil
 import time
 
 os.environ['TF_USE_LEGACY_KERAS'] = 'True'

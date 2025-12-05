@@ -6,13 +6,14 @@ Uses NPZ cache when available to skip re-extraction from raw TIFFs.
 import glob
 import os
 import shutil
+
 import numpy as np
 import tensorflow as tf
 
-from typing import Tuple, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
-# Local Application Imports
-# (Assumes mlgis_helpers is in the python path)
+# Helpers of 'create_tfrecords()' orchestrator function
+# ---------------------------------------------------
 from mlgis_helpers.data_loading import (
     load_patches,
     simplify_masks,
@@ -21,7 +22,7 @@ from mlgis_helpers.data_loading import (
 
 NODATA = -9999.0
 
-def print_patch_statistics(msk_patches: np.ndarray, split_name: str) -> None:
+def _print_patch_statistics(msk_patches: np.ndarray, split_name: str) -> None:
     """
     Analyzes class balance in mask patches (Pixel counting).
     BY "mask patches", we mean binary images where positive pixels indicate
@@ -50,7 +51,7 @@ def print_patch_statistics(msk_patches: np.ndarray, split_name: str) -> None:
     print(f"  Positives:     {len(positive_indices)} ({pos_rate:.2f}%)")
     print(f"  Pixel dist:    {pixel_counts}")
 
-def write_patches_to_tfrecord(
+def _write_patches_to_tfrecord(
     images: np.ndarray,
     masks: np.ndarray,
     output_path: str,
@@ -94,8 +95,8 @@ def write_patches_to_tfrecord(
 
 
 def _process_split(
-    image_path: str,
-    base_params: Dict,
+    image_path: Union[str, Sequence[str]],
+    base_params: Dict[str, Any],
     quick_mode: bool,
     ario_shapefile: Optional[str] = None
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -104,7 +105,11 @@ def _process_split(
     """
     # 1. Load Patches
     # In quick mode, we only load 100 patches to test the pipeline
-    print(f"Loading patches from: {os.path.basename(str(image_path))}...")
+    if isinstance(image_path, (list, tuple)):
+        display_name = ", ".join(os.path.basename(p) for p in image_path)
+    else:
+        display_name = os.path.basename(image_path)
+    print(f"Loading patches from: {display_name}...")
     result = load_patches(
         image_path,
         quick_mode=quick_mode,
@@ -165,8 +170,8 @@ def create_tfrecords(
     val_image_path: str,
     cache_dir: str,
     task: str,
-    base_params: Dict,
-    config: Dict,
+    base_params: Dict[str, Any],
+    config: Dict[str, Any],
     quick_mode: bool = False,
     ario_shapefile: Optional[str] = None,
 ) -> Tuple[str, str]:
@@ -218,10 +223,10 @@ def create_tfrecords(
     # Process Train
     t_img, t_msk = _process_split(train_image_path, base_params,
                                   quick_mode, ario_shapefile)
-    print_patch_statistics(t_msk, "train")
+    _print_patch_statistics(t_msk, "train")
 
     d_train = int(config.get('GLOBAL', {}).get('mask_dilation_train', 0))
-    write_patches_to_tfrecord(t_img, t_msk, train_out, 'train', d_train)
+    _write_patches_to_tfrecord(t_img, t_msk, train_out, 'train', d_train)
 
     # Free memory
     del t_img, t_msk
@@ -229,9 +234,9 @@ def create_tfrecords(
     # Process Val
     v_img, v_msk = _process_split(val_image_path, base_params,
                                   quick_mode, ario_shapefile)
-    print_patch_statistics(v_msk, "val")
+    _print_patch_statistics(v_msk, "val")
 
     d_val = int(config.get('GLOBAL', {}).get('mask_dilation_val', 0))
-    write_patches_to_tfrecord(v_img, v_msk, val_out, 'val', d_val)
+    _write_patches_to_tfrecord(v_img, v_msk, val_out, 'val', d_val)
 
     return train_out, val_out

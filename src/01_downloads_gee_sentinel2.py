@@ -49,7 +49,7 @@ def get_aoi(country_name, state_name):
     ))
     return fc.geometry()
 
-def get_sentinel2_collection(aoi, start_date, end_date):
+def _get_sentinel2_collection(aoi, start_date, end_date):
     """Fetch Sentinel-2 imagery joined with cloud probability."""
     s2_sr_col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
                  .filterBounds(aoi)
@@ -66,7 +66,7 @@ def get_sentinel2_collection(aoi, start_date, end_date):
                                    rightField='system:index')
     ))
 
-def mask_sentinel2_clouds(image):
+def _mask_sentinel2_clouds(image):
     """Cloud masking using SCL, Cloud Prob, and Brightness."""
     scl = image.select('SCL') # Scene Classification Layer (SCL)
     # Keep Veg (4), Soil (5), Water (6), Unclassified (7)
@@ -87,10 +87,10 @@ def mask_sentinel2_clouds(image):
 
     return image.updateMask(scl_mask.And(cloud_mask).And(brightness_mask))
 
-def create_quarterly_composite(aoi, start_date, end_date):
+def _create_quarterly_composite(aoi, start_date, end_date):
     """Creates a Best-Available-Pixel composite for a quarter."""
-    s2_col = get_sentinel2_collection(aoi, start_date, end_date)
-    masked_col = s2_col.map(mask_sentinel2_clouds)
+    s2_col = _get_sentinel2_collection(aoi, start_date, end_date)
+    masked_col = s2_col.map(_mask_sentinel2_clouds)
 
     bands = ['B2', 'B3', 'B4', 'B5', 'B6',
              'B7', 'B8', 'B8A', 'B11', 'B12']
@@ -124,7 +124,7 @@ def create_quarterly_composite(aoi, start_date, end_date):
         'count': count
     }
 
-def export_image(image, folder_name, file_name_prefix, aoi):
+def _export_image(image, folder_name, file_name_prefix, aoi):
     """Handles the GEE export task submission."""
     task = ee.batch.Export.image.toDrive(
         image=image.clip(aoi).toFloat(),
@@ -151,7 +151,7 @@ def process_year(year, aoi):
         q_end = q_start.advance(3, 'month')
 
         # Generate composite (Compute ONCE)
-        result = create_quarterly_composite(aoi, q_start, q_end)
+        result = _create_quarterly_composite(aoi, q_start, q_end)
         count = result['count'].getInfo()
 
         if count > 0:
@@ -170,7 +170,7 @@ def process_year(year, aoi):
 
     # Export Annual Composite
     annual_desc = f'S2_{year}_ANNUAL_MEDIAN'
-    export_image(annual_median, folder_name, annual_desc, aoi.bounds())
+    _export_image(annual_median, folder_name, annual_desc, aoi.bounds())
 
 
 ee.Initialize(project=PROJECT_ID)

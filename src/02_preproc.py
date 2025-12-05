@@ -11,14 +11,14 @@ unified tiling grid, ensuring spatial consistency across years and
 sensors.
 
 Supported Imagery:
-    - Sentinel-2: Annual median composites (10 bands + NDVI + MNDWI).
-    - PlanetScope: High-res mosaics (4 bands + NDVI + Proxy MNDWI).
-    - Landsat 5/7/8: Annual composites (Scaled spectral + Indices).
-    - HLS-L30: Harmonized Landsat Sentinel data.
+    - Sentinel-2: Annual median composites (10 bands + NDVI + MNDWI)
+    - PlanetScope: High-res mosaics (4 bands + NDVI + Proxy MNDWI)
+    - Landsat 5/7/8: Annual composites (Scaled spectral + Indices)
+    - HLS-L30: Harmonized Landsat Sentinel data
 
 Key Operations:
-    - **Grid Alignment**: Builds a project-wide shapefile grid (0.5° cells)
-    - **Normalization**: Computes global P2/P98 stats (Prerun) and *then*
+    - Grid Alignment: Builds a project-wide shapefile grid (0.5° cells)
+    - Normalization: Computes global P2/P98 stats (Prerun) and *then*
       normalizes all cells to [-1, 1] consistently.
 
 Usage:
@@ -714,22 +714,22 @@ def process_chunk(job: Dict[str, Any]) -> Tuple[str, str]:
 
     Args:
         job (dict): Configuration dictionary containing:
-            - chunk_id (str): Unique identifier (e.g., "3_4").
-            - bounds (tuple): (min_x, min_y, max_x, max_y) in WGS84.
-            - sources (List[str]): Paths to raw imagery files.
-            - out_dir (str): Target directory for output COGs.
-            - filename_template (str): (e.g., "chunk_{chunk_id}.tif").
-            - spec_key (str): Sensor config key (e.g., 's2', 'planet').
-            - shape_hw (tuple): Target pixel dimensions (height, width).
-            - limits (dict): Normalization stats {band: (p2, p98)}.
-            - overwrite (bool): If True, re-processes existing outputs.
-            - aoi_rasters (List[str], optional): Paths to AOI masks.
-            - aoi_exclude_values (List[int], optional): Pixel vals to mask out.
+            - chunk_id (str): Unique identifier (e.g., "3_4")
+            - bounds (tuple): (min_x, min_y, max_x, max_y) in WGS84
+            - sources (List[str]): Paths to raw imagery files
+            - out_dir (str): Target directory for output COGs
+            - filename_template (str): (e.g., "chunk_{chunk_id}.tif")
+            - spec_key (str): Sensor config key (e.g., 's2', 'planet')
+            - shape_hw (tuple): Target pixel dimensions (height, width)
+            - limits (dict): Normalization stats {band: (p2, p98)}
+            - overwrite (bool): If True, re-processes existing outputs
+            - aoi_rasters (List[str], optional): Paths to AOI masks
+            - aoi_exclude_values (List[int], optional): Pixel vals to mask out
 
     Returns:
         tuple: (chunk_id, status_code)
-            - chunk_id (str): The ID of the processed chunk.
-            - status_code (str): 'ok', 'skip' (exists/empty), or 'error'.
+            - chunk_id (str): The ID of the processed chunk
+            - status_code (str): 'ok', 'skip' (exists/empty), or 'error'
     """
     start = time.time()
     chunk_id = job['chunk_id']
@@ -812,7 +812,8 @@ def process_chunk(job: Dict[str, Any]) -> Tuple[str, str]:
                         break
                     if band_idx > vrt.count:
                         continue
-                    arr = vrt.read(band_idx, out_shape=(shape_hw[0], shape_hw[1]))
+                    arr = vrt.read(band_idx, out_shape=(shape_hw[0],
+                                                        shape_hw[1]))
                     arr = arr.astype(np.float32, copy=False)
 
                     # Internal Validity Check (Finite + Nodata)
@@ -868,6 +869,74 @@ def process_chunk(job: Dict[str, Any]) -> Tuple[str, str]:
                     pass
         return chunk_id, 'error'
 
+def _resolve_grid_path(project_cfg: Dict[str, str], allow_missing: bool = False) -> Path: # noqa: E501
+    """Return the project-defined grid shapefile."""
+    configured = project_cfg.get('grid_shapefile')
+    if not configured:
+        # Auto-construct based on project root if missing
+        root = Path(project_cfg.get('root', '.'))
+        return root / f'grid_{CHUNK_DEG:.2f}.shp'
+
+    path = Path(configured)
+    if path.exists() or allow_missing:
+        return path
+    raise FileNotFoundError(f'Configured grid path not found: {path}')
+
+
+def _resolve_from_config(
+    *,
+    host: str,
+    project: str,
+    year: Optional[int],
+    spec_key: str,
+    allow_missing_grid: bool = False,
+) -> Tuple[str, Path, Path, Path]:
+    if spec_key not in SENSOR_SPECS:
+        msg = (f"Unknown spec_key '{spec_key}'. "
+               f"Opts: {', '.join(sorted(SENSOR_SPECS))}")
+        raise ValueError(msg)
+    cfg = load_config()
+    host_cfg = cfg['HOSTS'].get(host)
+    if host_cfg is None:
+        raise ValueError(f"Unknown host '{host}' in configuration")
+    project_cfg = host_cfg.get(project)
+    if project_cfg is None:
+        raise ValueError(f"Unknown project '{project}' for host '{host}'")
+
+    raw_primary = project_cfg.get('raw_folder')
+    if not raw_primary:
+        raise FileNotFoundError("Project config missing 'raw_folder' entry")
+    raw_dir = Path(raw_primary)
+
+    if not raw_dir.exists():
+        raise FileNotFoundError(f'Raw imagery dir does not exist: {raw_dir}')
+
+    grid_path = _resolve_grid_path(project_cfg,
+                                   allow_missing=allow_missing_grid)
+    out_dir = Path(project_cfg['proc_folder'])
+    if year is not None:
+        # Standard output structure: {year}-{SENSOR_CODE}
+        sensor_code = SENSOR_CODE.get(spec_key, spec_key.upper())
+        out_dir = out_dir / f'{year}-{sensor_code}'
+
+    return spec_key, raw_dir, grid_path, out_dir
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description='Unified imagery prep')
+    parser.add_argument('--sensor', choices=sorted(SENSOR_SPECS.keys()),
+                        required=True)
+    parser.add_argument('--year', type=int, required=True)
+    parser.add_argument('--project', required=True,
+                        help='Project key mapping to config.yaml paths')
+    parser.add_argument('--host', default='quest', help='Host environment key')
+    parser.add_argument('--overwrite', action='store_true')
+    parser.add_argument('--prerun', action='store_true',
+                        help='Generate grid and stats ONLY, then exit.')
+    parser.add_argument('--use-percentiles-from', type=str, default=None,
+                        help='Override stats file path.')
+    return parser
+
 def process_year(
     *,
     spec_key: str,
@@ -909,7 +978,6 @@ def process_year(
 
     # 3. Load Dependencies (Stats & Grid)
     # -----------------------------------
-    spec = SENSOR_SPECS[spec_key]
 
     # Resolve Percentiles Source
     if use_percentiles_from:
@@ -1044,75 +1112,6 @@ def process_year(
         print("\n  FAILED CHUNKS:")
         for cid in errors:
             print(f"    - {cid}")
-
-
-def _resolve_grid_path(project_cfg: Dict[str, str], allow_missing: bool = False) -> Path: # noqa: E501
-    """Return the project-defined grid shapefile."""
-    configured = project_cfg.get('grid_shapefile')
-    if not configured:
-        # Auto-construct based on project root if missing
-        root = Path(project_cfg.get('root', '.'))
-        return root / f'grid_{CHUNK_DEG:.2f}.shp'
-
-    path = Path(configured)
-    if path.exists() or allow_missing:
-        return path
-    raise FileNotFoundError(f'Configured grid path not found: {path}')
-
-
-def _resolve_from_config(
-    *,
-    host: str,
-    project: str,
-    year: Optional[int],
-    spec_key: str,
-    allow_missing_grid: bool = False,
-) -> Tuple[str, Path, Path, Path]:
-    if spec_key not in SENSOR_SPECS:
-        msg = (f"Unknown spec_key '{spec_key}'. "
-               f"Opts: {', '.join(sorted(SENSOR_SPECS))}")
-        raise ValueError(msg)
-    cfg = load_config()
-    host_cfg = cfg['HOSTS'].get(host)
-    if host_cfg is None:
-        raise ValueError(f"Unknown host '{host}' in configuration")
-    project_cfg = host_cfg.get(project)
-    if project_cfg is None:
-        raise ValueError(f"Unknown project '{project}' for host '{host}'")
-
-    raw_primary = project_cfg.get('raw_folder')
-    if not raw_primary:
-        raise FileNotFoundError("Project config missing 'raw_folder' entry")
-    raw_dir = Path(raw_primary)
-
-    if not raw_dir.exists():
-        raise FileNotFoundError(f'Raw imagery dir does not exist: {raw_dir}')
-
-    grid_path = _resolve_grid_path(project_cfg,
-                                   allow_missing=allow_missing_grid)
-    out_dir = Path(project_cfg['proc_folder'])
-    if year is not None:
-        # Standard output structure: {year}-{SENSOR_CODE}
-        sensor_code = SENSOR_CODE.get(spec_key, spec_key.upper())
-        out_dir = out_dir / f'{year}-{sensor_code}'
-
-    return spec_key, raw_dir, grid_path, out_dir
-
-
-def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='Unified imagery prep')
-    parser.add_argument('--sensor', choices=sorted(SENSOR_SPECS.keys()),
-                        required=True)
-    parser.add_argument('--year', type=int, required=True)
-    parser.add_argument('--project', required=True,
-                        help='Project key mapping to config.yaml paths')
-    parser.add_argument('--host', default='quest', help='Host environment key')
-    parser.add_argument('--overwrite', action='store_true')
-    parser.add_argument('--prerun', action='store_true',
-                        help='Generate grid and stats ONLY, then exit.')
-    parser.add_argument('--use-percentiles-from', type=str, default=None,
-                        help='Override stats file path.')
-    return parser
 
 # Define and call main function
 # -----------------------------

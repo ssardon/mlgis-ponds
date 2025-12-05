@@ -270,7 +270,7 @@ def print_summary(results):
 
 
 def write_metrics_txt(out_dir: str, metrics: dict, filename: str = 'test_metrics.txt') -> str:
-    """Write scalar metrics to a simple text file and return its path.
+    """Write scalar metrics to a simple text file and return its path
 
     Writes: AUC, Precision, Recall, F1, Threshold if present in metrics.
     """

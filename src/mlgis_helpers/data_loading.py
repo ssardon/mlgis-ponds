@@ -1,179 +1,40 @@
 """
-Data loading utilities used in training and inference
+GIS Data Loading & Utilities.
+Handles raster I/O, shapefile rasterization, and processing of shp/raster data.
 """
 
-import numpy as np
 import os
-import rasterio
-import geopandas as gpd
-import warnings
-import tensorflow as tf
+import time
 import traceback
-from tqdm.auto import tqdm
+import warnings
 from tempfile import NamedTemporaryFile
-from scipy.ndimage import binary_closing, binary_dilation, distance_transform_edt, binary_fill_holes
+from typing import List, Tuple, Optional, Union, Dict
+
+import geopandas as gpd
+import numpy as np
+import rasterio
+from rasterio.features import rasterize, shapes
+from scipy.ndimage import (
+    binary_closing, 
+    binary_dilation, 
+    binary_fill_holes,
+    distance_transform_edt,
+    label as nd_label
+)
 from shapely.geometry import Point, box
+from shapely.ops import unary_union
+from shapely.strtree import STRtree
+from tqdm.auto import tqdm
 
-
+# Cache for heavy water buffer shapefile data
 _WATER_BUFFER_CACHE = {}
-from rasterio.features import rasterize
-# Removed legacy imports - using direct rasterio operations
 
-def _process_chunk_parallel(args):
-    """Extract patches for a single chunk (worker function for parallel processing)."""
-    idx, image_file, shape_path, patch_size, stride, bands, cache_dir, task = args
 
-    print(f"\n--- Processing file {idx+1}: {os.path.basename(image_file)} ---")
-
-    # Setup cache file
-    cache_file = os.path.join(
-        cache_dir,
-        f"{os.path.splitext(os.path.basename(image_file))[0]}_{patch_size}px_stride{stride}.npz"
-    )
-
-    # Load from cache if exists
-    if os.path.exists(cache_file):
-        print("  Loading from cache")
-        with np.load(cache_file) as data:
-            imgs = data["img"]
-            msks = data["msk"]
-            # Load patch coordinates if available (for backward compatibility)
-            patch_coords = data["patch_coords"] if "patch_coords" in data else np.array([])
-        # Clean NODATA if needed
-        imgs = set_missing_to_nodata(imgs)
-        if np.any(imgs <= -9999):
-            imgs = np.where(imgs <= -9999, -1.0, imgs)  # replace sentinel NODATA with normalized floor so training stays within [-1,1]
-            imgs = np.clip(imgs.astype(np.float32), -1.0, 1.0)
-        return imgs, msks, patch_coords
-
-    try:
-        # Load image
-        selected_bands_image = read_bands_float32(image_file, bands)
-        selected_bands_image = set_missing_to_nodata(selected_bands_image)
-
-        # Load and rasterize shapefile
-        gdf = gpd.read_file(shape_path)
-        if gdf.crs is None:
-            gdf = gdf.set_crs("EPSG:4326")
-
-        with rasterio.open(image_file) as src:
-            gdf_proj = gdf.to_crs(src.crs) if gdf.crs != src.crs else gdf
-            tile_bounds = box(*src.bounds)
-            gdf_clip = gdf_proj[gdf_proj.intersects(tile_bounds)]
-
-            if len(gdf_clip):
-                print(f"  Rasterizing {len(gdf_clip)} polygons for this tile")
-                mask_array = rasterize(
-                    [(geom, 1) for geom in gdf_clip.geometry],
-                    out_shape=src.shape,
-                    transform=src.transform,
-                    fill=0,
-                    dtype=np.uint8
-                )
-            else:
-                print("  No polygons intersect tile; mask is empty")
-                mask_array = np.zeros(src.shape, dtype=np.uint8)
-
-        h, w = selected_bands_image.shape[:2]
-        if h < patch_size or w < patch_size:
-            print("  Tile is smaller than patch; skipping")
-            return np.array([]), np.array([])
-
-        # For mines: compute distance transform for 1km neighbors
-        if task == "mines":
-            keep_random_neg_frac = 0.10
-            print("  Computing distance transform for 1km neighbor detection...")
-            mask_bool = mask_array > 0
-            distance_to_positive = distance_transform_edt(~mask_bool, sampling=10.0)  # treat background pixels as 1s to measure distance to nearest positive label at 10 m resolution
-            mask_neighbor = distance_to_positive <= 1000.0  # 1km radius
-        else:
-            keep_random_neg_frac = 1.0
-            mask_neighbor = None
-
-        # Extract patches
-        image_patches = []
-        mask_patches = []
-        patch_coords = []  # Store geographic coordinates for each kept patch
-        kept_positive = kept_neighbor = kept_random = 0
-        skipped_nodata = 0  # Track patches skipped due to NODATA
-
-        # Get image transform for coordinate conversion
-        with rasterio.open(image_file) as src:
-            img_transform = src.transform
-
-        for row in range(0, h - patch_size + 1, stride):
-            for col in range(0, w - patch_size + 1, stride):
-                img_patch = selected_bands_image[row:row+patch_size, col:col+patch_size]
-                msk_patch = mask_array[row:row+patch_size, col:col+patch_size]
-
-                # Skip patches with >10% NODATA in any band (tighter filter for better data quality)
-                nodata_mask = (img_patch <= -9999)
-                # Calculate NODATA fraction per band
-                skip_patch = False
-                for band_idx in range(img_patch.shape[-1]):
-                    band_nodata_frac = nodata_mask[:, :, band_idx].mean()  # fraction of this band's pixels flagged as NODATA inside the patch
-                    if band_nodata_frac > 0.10:  # 10% threshold per band
-                        skip_patch = True
-                        break
-                if skip_patch:
-                    skipped_nodata += 1
-                    continue  # Skip this patch
-
-                has_positive = msk_patch.sum() > 0
-                if task == "mines" and not has_positive and mask_neighbor is not None:
-                    neigh_patch = mask_neighbor[row:row+patch_size, col:col+patch_size]
-                    near_positive = neigh_patch.any()
-                else:
-                    near_positive = False
-
-                if has_positive:
-                    kept_positive += 1
-                elif near_positive:
-                    kept_neighbor += 1
-                elif np.random.random() < keep_random_neg_frac:  # randomly keep a subset of far-negative patches to limit dataset size
-                    kept_random += 1
-                else:
-                    continue
-
-                image_patches.append(img_patch)
-                mask_patches.append(msk_patch)
-                # Calculate geographic coordinates of patch center
-                center_row = row + patch_size // 2
-                center_col = col + patch_size // 2
-                x, y = rasterio.transform.xy(img_transform, center_row, center_col)  # convert patch center row/col into map coordinates
-                patch_coords.append((x, y))
-
-        if task == "mines":
-            print(f"  Stats: {kept_positive} positives, {kept_neighbor} neighbors, {kept_random} random negatives")
-        if skipped_nodata > 0:
-            print(f"  Skipped {skipped_nodata} patches with >10% NODATA in any band (tighter filter)")
-
-        imgs = np.array(image_patches, dtype=np.float32)
-        msks = np.array(mask_patches, dtype=np.uint8)
-
-        # Clean NODATA
-        if np.any(imgs <= -9999):
-            imgs = np.where(imgs <= -9999, -1.0, imgs)  # replace sentinel NODATA with normalized floor so training stays within [-1,1]
-
-        # Save to cache atomically
-        with NamedTemporaryFile(dir=os.path.dirname(cache_file), suffix=".npz", delete=False) as tmp:
-            np.savez(
-                tmp.name,
-                img=imgs,
-                msk=msks,
-                patch_coords=np.array(patch_coords) if patch_coords else np.array([])  # write cache snapshot to temp file before atomic move
-            )
-        os.replace(tmp.name, cache_file)
-
-        print(f"  Saved {len(imgs)} patches to cache")
-        return imgs, msks, np.array(patch_coords) if patch_coords else np.array([])
-
-    except Exception:
-        print(f"  ERROR processing {os.path.basename(image_file)}")
-        traceback.print_exc()
-        return np.array([]), np.array([]), np.array([])
-
-def read_bands_float32(image_path: str, bands: list) -> np.ndarray:
+# Worker function extract_patches_from_file(), and its helpers
+# Used by load_patches() in this module, which is in turn called by
+# preprocess_tfrecord.create_tfrecords() to build training/validation datasets.
+# ---------------------------------------------------------------------------
+def _read_bands_float32(image_path: str, bands: list) -> np.ndarray:
     """
     Read selected bands into an HxWxC float32 array (no re-standardizing).
     Special handling for band 13 which computes NBR = (B8-B12)/(B8+B12).
@@ -231,8 +92,222 @@ def read_bands_float32(image_path: str, bands: list) -> np.ndarray:
             return src.read(bands).transpose((1, 2, 0)).astype(np.float32)
 
 
-def set_missing_to_nodata(arr: np.ndarray) -> np.ndarray:
+def _set_missing_to_nodata(arr: np.ndarray) -> np.ndarray:
     return np.where(np.isfinite(arr), arr, -9999.0)
+
+def extract_patches_from_file(args: tuple) -> Tuple[np.ndarray,
+                                                     np.ndarray, np.ndarray]:
+    """
+    Worker function: Extracts patches from a single TIFF file.
+
+    Notice this is quite different from the 'process_chunk' worker function in
+    '02_preproc.py', which extracts large 0.5 degree chunks from many raw
+    imagery files covering the entire area of interest. Here, we take a given
+    chunk (a single TIFF) and chop it into much smaller patches (currently
+    using 128 pixel chunks, so 1.28 km each at Sentinel-2's 10m resolution).
+
+    Args:
+        args (tuple): Packed arguments for multiprocessing serialization:
+            - idx (int): Worker index (for logging purposes)
+            - image_file (str): Path to the source GeoTIFF raster
+            - shape_path (str): Path to the vector label Shapefile
+            - patch_size (int): Height/Width of square patches in pixels
+            - stride (int): Sliding window step size in pixels
+            - bands (List[int]): 1-based indices of spectral bands to read
+            - cache_dir (str): Path to store intermediate .npz files
+            - task (str): Task identifier (e.g., 'ponds', 'mines')
+
+    Returns:
+        tuple: (images, masks, coords)
+            - images (np.ndarray): Tensor (N, ps, ps, Channels)
+            - masks (np.ndarray): Tensor (N, ps, ps)
+            - coords (np.ndarray): Array (N, 2) with coords of patch centroids
+            (ps = patch_size; masks are binary rasters built from labels)
+
+
+    Operations:
+    1. Checks NPZ cache (returns early if found).
+    2. Reads raster bands.
+    3. Rasterizes vector labels (shapefile) to create mask.
+    4. Extracts strided patches.
+    5. Filters based on content (NODATA check, positive label presence).
+    6. Saves result to NPZ cache.
+    """
+    idx, image_file, shape_path, patch_size, stride, bands, cache_dir, task = args
+
+    fname = os.path.basename(image_file)
+    print(f"\n--- Processing file {idx+1}: {fname} ---")
+
+    # 1. Check Cache
+    # --------------
+    # Naming convention: {filename}_{size}px_stride{stride}.npz
+    stem = os.path.splitext(fname)[0]
+    cache_path = os.path.join(cache_dir,
+                              f"{stem}_{patch_size}px_stride{stride}.npz")
+
+    if os.path.exists(cache_path):
+        print("  Loading from cache")
+        with np.load(cache_path) as data:
+            imgs = data["img"]
+            msks = data["msk"]
+            coords = data.get("patch_coords", np.array([]))
+
+        # Quick sanity check / cleanup on cached data
+        if np.any(imgs <= -9999):
+            imgs = np.where(imgs <= -9999, -1.0, imgs)
+            imgs = np.clip(imgs.astype(np.float32), -1.0, 1.0)
+
+        return imgs, msks, coords
+
+    try:
+        # 2. Load & Preprocess Image
+        # --------------------------
+        # Note: read_bands_float32 must be defined below
+        img_arr = _read_bands_float32(image_file, bands)
+        img_arr = _set_missing_to_nodata(img_arr) # Helper to fix Infs/NaNs
+
+        # 3. Rasterize Vector Labels
+        # --------------------------
+        gdf = gpd.read_file(shape_path)
+        if gdf.crs is None:
+            gdf = gdf.set_crs("EPSG:4326")
+
+        with rasterio.open(image_file) as src:
+            # Ensure CRS match
+            if gdf.crs != src.crs:
+                gdf_proj = gdf.to_crs(src.crs)
+            else:
+                gdf_proj = gdf
+
+            # Only rasterize polygons that actually touch the input tile
+            tile_box = box(*src.bounds)
+            local_gdf = gdf_proj[gdf_proj.intersects(tile_box)]
+
+            if not local_gdf.empty:
+                print(f"  Rasterizing {len(local_gdf)} polygons")
+                mask_arr = rasterize(
+                    [(g, 1) for g in local_gdf.geometry],
+                    out_shape=src.shape,
+                    transform=src.transform,
+                    fill=0,
+                    dtype=np.uint8
+                )
+            else:
+                print("  No intersection; empty mask")
+                mask_arr = np.zeros(src.shape, dtype=np.uint8)
+
+            img_transform = src.transform
+
+        # 4. Patch Extraction Loop
+        # ------------------------
+        h, w = img_arr.shape[:2]
+        if h < patch_size or w < patch_size:
+            print("  Tile smaller than patch_size; skipping.")
+            return np.array([]), np.array([]), np.array([])
+
+        # Task-Specific Logic (Mining vs Agriculture)
+        keep_random_frac = 1.0
+        mask_neighbor = None
+
+        if task == "mines":
+            keep_random_frac = 0.10 # Downsample negatives
+            print("  Mining mode: Computing 1km proximity mask...")
+            is_pos = mask_arr > 0
+            # Distance transform on INVERTED mask (distance to nearest True)
+            # sampling=10.0 assumes ~10m resolution (Sentinel-2)
+            dist_map = distance_transform_edt(~is_pos, sampling=10.0)
+            mask_neighbor = dist_map <= 1000.0
+
+        patches_img = []
+        patches_msk = []
+        patches_xy = []
+
+        # Counters
+        stats = {'pos': 0, 'neighbor': 0, 'random': 0, 'nodata': 0}
+
+        # Iterate sliding window
+        for r in range(0, h - patch_size + 1, stride):
+            for c in range(0, w - patch_size + 1, stride):
+                # Slice
+                ip = img_arr[r:r+patch_size, c:c+patch_size]
+                mp = mask_arr[r:r+patch_size, c:c+patch_size]
+
+                # Filter: NODATA Check (>10% bad pixels in ANY band)
+                is_nodata = (ip <= -9999)
+                # Check mean nodata per band
+                # axis=(0,1) collapses H,W -> leaves (Bands,)
+                band_nodata_frac = is_nodata.mean(axis=(0,1))
+
+                if np.any(band_nodata_frac > 0.10):
+                    stats['nodata'] += 1
+                    continue
+
+                # Filter: Content Check
+                has_pos = mp.sum() > 0
+                is_neighbor = False
+
+                if not has_pos and mask_neighbor is not None:
+                    np_patch = mask_neighbor[r:r+patch_size, c:c+patch_size]
+                    is_neighbor = np_patch.any()
+
+                # Decision: Keep or Drop?
+                keep = False
+                if has_pos:
+                    keep = True
+                    stats['pos'] += 1
+                elif is_neighbor:
+                    keep = True
+                    stats['neighbor'] += 1
+                elif np.random.random() < keep_random_frac:
+                    keep = True
+                    stats['random'] += 1
+
+                if keep:
+                    patches_img.append(ip)
+                    patches_msk.append(mp)
+
+                    # Calculate center coordinates (Geo)
+                    cr = r + patch_size // 2
+                    cc = c + patch_size // 2
+                    px, py = rasterio.transform.xy(img_transform, cr, cc)
+                    patches_xy.append((px, py))
+
+        # 5. Finalize & Save to Cache
+        # ---------------------------
+        if task == "mines":
+            print(f"  Stats: {stats['pos']} pos, {stats['neighbor']} near, {stats['random']} rand")
+        if stats['nodata'] > 0:
+            print(f"  Skipped {stats['nodata']} patches due to NODATA content.")
+
+        if not patches_img:
+            return np.array([]), np.array([]), np.array([])
+
+        final_imgs = np.array(patches_img, dtype=np.float32)
+        final_msks = np.array(patches_msk, dtype=np.uint8)
+        final_xys = np.array(patches_xy)
+
+        # Final safety guard
+        if np.any(final_imgs <= -9999):
+            final_imgs = np.where(final_imgs <= -9999, -1.0, final_imgs)
+
+        # Atomic Write (temp file + rename, to avoid partial writes to cache)
+        with NamedTemporaryFile(dir=os.path.dirname(cache_path),
+                                suffix=".npz", delete=False) as tmp:
+            np.savez(tmp.name, img=final_imgs,
+                     msk=final_msks, patch_coords=final_xys)
+        os.replace(tmp.name, cache_path)
+
+        print(f"  Cached {len(final_imgs)} patches.")
+        return final_imgs, final_msks, final_xys
+
+    except Exception:
+        print(f"  ERROR processing {fname}")
+        traceback.print_exc()
+        return np.array([]), np.array([]), np.array([])
+
+
+#--------------------------------------------------
+
 
 # Lightweight postproc utilities (CRS, intersections, grouping)
 def ensure_crs(gdf, target=None, fallback='EPSG:4326'):
@@ -502,7 +577,10 @@ def vectorize_predictions(prob_map, crs, transform, threshold=0.5, min_area_m2=1
     return gdf
 
 
-def load_patches(image_path, shape_path, patch_size, out_dir, bands, cache_dir, stride_ratio, quick_mode=False, quick_patches=128, buffer_radius=None, task=None):
+def load_patches(image_path, shape_path, patch_size,
+                 out_dir, bands, cache_dir,
+                 stride_ratio, quick_mode=False,
+                 quick_patches=128, buffer_radius=None, task=None):
     """Return cached or freshly extracted patches.
 
     Set `quick_mode=True` to keep ~`quick_patches` positive patches.
@@ -570,12 +648,12 @@ def load_patches(image_path, shape_path, patch_size, out_dir, bands, cache_dir, 
         from multiprocessing import Pool
         print(f"\nProcessing {len(tiff_files)} chunks in parallel...")
         with Pool() as pool:
-            chunk_results = pool.map(_process_chunk_parallel, chunk_args)
+            chunk_results = pool.map(extract_patches_from_file, chunk_args)
     else:
         # Process sequentially (for single chunk or quick mode)
         chunk_results = []
         for args in chunk_args:
-            result = _process_chunk_parallel(args)
+            result = extract_patches_from_file(args)
             chunk_results.append(result)
             # Extract imgs to check patch count (handles both 2-tuple and 3-tuple)
             imgs = result[0] if isinstance(result, tuple) and len(result) > 0 else np.array([])
@@ -676,7 +754,7 @@ def simplify_masks(masks, dilation_radius=3):
         raise ValueError(f"Unexpected mask shape: {masks.shape}")
 
 
-def check_feature_dynamic_range(image_patches):
+def _check_feature_dynamic_range(image_patches):
     """
     Check dynamic range of features to detect potential data issues.
     From Test 6 of original diagnostic tests.
@@ -869,7 +947,7 @@ def filter_to_ario_proximity(patches, masks, patch_coords, image_path, patch_siz
 
     # Run feature dynamic range check on filtered patches
     if len(filtered_patches) > 0:
-        check_feature_dynamic_range(filtered_patches)
+        _check_feature_dynamic_range(filtered_patches)
 
     return filtered_patches, filtered_masks, filtered_coords
 
