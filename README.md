@@ -1,6 +1,6 @@
 # mlgis-ponds
 
-Deep learning pipeline for detecting irrigation ponds in satellite imagery. This is a ML toolkit for GIS data developed for my PhD dissertation, which sudies how international trade affects agricultural investment and development in Mexico.
+Deep learning pipeline for detecting irrigation ponds in satellite imagery. This is an ML toolkit for GIS data developed for my PhD dissertation, which sudies how international trade affects agricultural investment and development in Mexico.
 
 ## Motivation
 
