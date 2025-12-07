@@ -99,7 +99,7 @@ conda activate mlgis
 python src/03_main.py --task pondsNIR-S2024
 ```
 
-This uses the `pondsNIR-S2024` configuration, training the U-NET on the visible green, near infrared (NIR), and SWIR bands of 2024 Sentinel-2 imagery. The hyperparameter attached to this configuration (e.g., a relatively small U-NET, called `unet_tiny` in the configuration files) performs better than anything else I have tried (a *large* comparison set, including random forests, much larger U-NETs, (possibly pretrained) Residual Networkts, and even a simple visual transfromer. If you discover upon a better configuration please let me know!
+This uses the `pondsNIR-S2024` configuration, training the U-NET on the visible green, near infrared (NIR), and SWIR bands of 2024 Sentinel-2 imagery. The hyperparameter attached to this configuration (e.g., a relatively small U-NET, called `unet_tiny` in the configuration files) performs better than anything else I have tried (a *large* comparison set, including random forests, much larger U-NETs, (possibly pretrained) Residual Networkts, and even a simple visual transfromer. If you discover a better configuration please let me know!
 
 ## License
 
