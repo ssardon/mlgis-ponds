@@ -62,7 +62,7 @@ conda activate mlgis
 
 **Step 1: Data Download** Run `01_downloads_gee_sentinel2.py`. This will fetch all Setninel-2 images (L2A) that Google Earth Engine has for the state of Michoacan in Mexico, for a year of your choice (my dissertation uses 2019-2024). Each year weighs around 90GB, and this will be stored in your Google Drive. The script could be set up to instead use Google Cloud, which is faster, but it would carry a monetary cost every time you run the script and/or download the imagery.
 
-Moving 90GB from Google Drive to your local file system is non-trivial and, doing so manually will often require multiple failed attempts. I recommend using `rclone`, which has a convenient CLI. To set it up:
+Moving 90GB from Google Drive to your local file system is non-trivial and doing so manually will often require multiple failed attempts. I recommend using `rclone`, which has a convenient CLI. To set it up:
 
 ```bash
 rclone config delete SebastianGmailGdrive

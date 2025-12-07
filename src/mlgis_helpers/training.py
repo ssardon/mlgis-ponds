@@ -219,6 +219,7 @@ def _calculate_optimal_pos_weight(ds, n_batches=100):
         print("  WARNING: No positive pixels found, using default pos_weight=1.0")
         return 1.0, 0.0
 
+
 def _make_standard_dataset(val_tfrecord_path, batch_size):
     """Create finite validation dataset from TFRecord."""
     dataset = tf.data.TFRecordDataset([val_tfrecord_path], num_parallel_reads=tf.data.AUTOTUNE)
@@ -227,6 +228,7 @@ def _make_standard_dataset(val_tfrecord_path, batch_size):
     dataset = dataset.repeat(1)  # Finite - only one pass through data
     dataset = dataset.prefetch(2)
     return dataset
+
 
 def log_quantiles(data, label, percentiles=[0.1, 50, 99.9]):
     """Log data quantiles for diagnostic verification.
@@ -259,8 +261,6 @@ def log_quantiles(data, label, percentiles=[0.1, 50, 99.9]):
     print(f"  Data shape: {data.shape}")
     print(f"  Data type: {data.dtype}")
     print(f"  Min/Max: [{data.min():.6f}, {data.max():.6f}]")
-
-
 
 
 def apply_enhanced_data_cleaning(X, y, nodata_value=-9999):

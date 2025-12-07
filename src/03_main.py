@@ -134,9 +134,9 @@ def run_pipeline(config, paths, task, arch,
     # Simulate sliding windows (as in inference) to get F1-maximizing threshold
     config['current_host'] = config.get('host', 'mac')
     post_metrics = evaluation.validate_inference_style(model,
-                                                             config,
-                                                             task_config,
-                                                             paths)
+                                                       config,
+                                                       task_config,
+                                                       paths)
     _save_validation_artifacts(paths['out_dir'],
                                train_metrics, post_metrics)
     print(f"\nValidation artifacts saved to: {paths['out_dir']}")
