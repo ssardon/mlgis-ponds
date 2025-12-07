@@ -60,7 +60,7 @@ conda activate mlgis
 
 ## Usage
 
-**Step 1: Data Download** Run `01_downloads_gee_sentinel2.py`. This will fetch all Setninel-2 images (L2A) that Google Earth Engine has for the state of Michoacan in Mexico, for a year of your choice (my dissertation uses 2019-2024). Each year weighs around 90GB, and this will be stored in your Google Drive. The script could be set up to instead use Google Cloud, which is faster, but it would carry a monetary cost every time you run the script and/or download the imagery.
+**Step 1: Data Download** Run `01_downloads_gee_sentinel2.py`. This will fetch all Sentinel-2 images (L2A) that Google Earth Engine has for the state of Michoacan in Mexico, for a year of your choice (my dissertation uses 2019-2024). Each year weighs around 90GB, and this will be stored in your Google Drive. The script could be set up to instead use Google Cloud, which is faster, but it would carry a monetary cost every time you run the script and/or download the imagery.
 
 Moving 90GB from Google Drive to your local file system is non-trivial and doing so manually will often require multiple failed attempts. I recommend using `rclone`, which has a convenient CLI. To set it up:
 
@@ -84,7 +84,7 @@ Then:
 12. Confirm: `y`
 13. `q` to quit
 
-Then rclone is properly configured and you can run (replacing `SebastianGmailGdrive` with the name you chose to assign to your Google Drive for `rclone` operations in step 2 above, replacing `2024` with the appropriate year if you are using a different once, and replacing `YOURDIR` with the location where you want to store raw images):
+Then rclone is properly configured and you can run (replacing `SebastianGmailGdrive` with the name you chose to assign to your Google Drive for `rclone` operations in step 2 above, replacing `2024` with the appropriate year if you are using a different one, and replacing `YOURDIR` with the location where you want to store raw images):
 
 `rclone copy SebastianGmailGdrive:GoogleEarthEngine_MexMichoacan_S2_2024 /YOURDIR/raw/2024-S2_new/ -P`
 
@@ -99,7 +99,7 @@ conda activate mlgis
 python src/03_main.py --task pondsNIR-S2024
 ```
 
-This uses the `pondsNIR-S2024` configuration, training the U-NET on the visible green, near infrared (NIR), and SWIR bands of 2024 Sentinel-2 imagery. The hyperparameter attached to this configuration (e.g., a relatively small U-NET, called `unet_tiny` in the configuration files) performs better than anything else I have tried (a *large* comparison set, including random forests, much larger U-NETs, (possibly pretrained) Residual Networkts, and even a simple visual transfromer. If you discover a better configuration please let me know!
+This uses the `pondsNIR-S2024` configuration, training the U-NET on the visible green, near infrared (NIR), and SWIR bands of 2024 Sentinel-2 imagery. The hyperparameter attached to this configuration (e.g., a relatively small U-NET, called `unet_tiny` in the configuration files) performs better than anything else I have tried (a *large* comparison set, including random forests, much larger U-NETs, (possibly pretrained) Residual Networks, and even a simple visual transformer. If you discover a better configuration please let me know!
 
 ## License
 
