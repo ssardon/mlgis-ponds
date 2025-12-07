@@ -37,13 +37,13 @@ mlgis-ponds/
 
 ## Results
 
-The model achieves strong out-of-sample performance (AUC = 0.99) on held-out validation tiles:
+The model achieves strong out-of-sample performance (AUC = 0.99) on held-out validation tiles. The figure below is based on 2024 Sentinel-2 imagery, but similar results can be obtained with 2019 or 2021 imagery.
 
 <p align="center">
   <img src="assets/roc_curve_S2.png" width="500">
 </p>
 
-Example detection in Michoacan, Mexico. Left: Sentinel-2 imagery showing an irrigation pond surrounded by avocado orchards. Right: Model predictions with confidence levels.
+Example detection in Michoacan, Mexico. Left: Maxar imagery (0.5 meter resolution, much finer than Sentinel-2) showing an irrigation pond surrounded by avocado orchards. Right: Model predictions with confidence levels.
 
 <p align="center">
   <img src="assets/detection_example.png" width="700">
@@ -60,7 +60,7 @@ conda activate mlgis
 
 ## Usage
 
-*Step 1:* Run `01_downloads_gee_sentinel2.py`. This will fetch all Setninel-2 images (L2A) that Google Earth Engine has for the state of Michoacan in Mexico, for a year of your choice (my dissertation uses 2019-2024). Each year weighs around 90GB, and this will be stored in your Google Drive. The script could be set up to instead use Google Cloud, which is faster, but it would carry a monetary cost every time you run the script and/or download the imagery.
+**Step 1: Data Download** Run `01_downloads_gee_sentinel2.py`. This will fetch all Setninel-2 images (L2A) that Google Earth Engine has for the state of Michoacan in Mexico, for a year of your choice (my dissertation uses 2019-2024). Each year weighs around 90GB, and this will be stored in your Google Drive. The script could be set up to instead use Google Cloud, which is faster, but it would carry a monetary cost every time you run the script and/or download the imagery.
 
 Moving 90GB from Google Drive to your local file system is non-trivial and, doing so manually will often require multiple failed attempts. I recommend using `rclone`, which has a convenient CLI. To set it up:
 
@@ -90,9 +90,9 @@ Then rclone is properly configured and you can run (replacing `SebastianGmailGdr
 
 On a reasonably fast internet connection `rclone` should transfer each year of imagery in 10-30 minutes.
 
-*Step 2:* GEE's raw imagery, at `/YOURDIR/raw/{year}-S2_new/` are converted into the preprocessed images the ML pipeline expects and saved to `/YOURDIR/raw/{year}-S2_new/`, for any `year` of your choice in 2019-2024
+**Step 2: Preprocessing** GEE's raw imagery, at `/YOURDIR/raw/{year}-S2_new/` are converted into the preprocessed images the ML pipeline expects and saved to `/YOURDIR/raw/{year}-S2_new/`, for any `year` of your choice in 2019-2024
 
-*Step 3 (main):*  We train a convolutional neural network (U-NET) that can detect irrigation ponds using `/YOURDIR/proc/{year}-S2_new/`, and the labels in this repo's `labels` folder. To do so, use:
+**Step 3 (main): Training**  We train a convolutional neural network (U-NET) that can detect irrigation ponds using `/YOURDIR/proc/{year}-S2_new/`, and the labels in this repo's `labels` folder. To do so, use:
 
 ```bash
 conda activate mlgis
