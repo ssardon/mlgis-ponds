@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 # Helpers of 'create_tfrecords()' orchestrator function
 # ---------------------------------------------------
-from mlgis_helpers.data_loading import (
+from mlgis_helpers.data_management import (
     load_patches,
     simplify_masks,
     filter_to_ario_proximity

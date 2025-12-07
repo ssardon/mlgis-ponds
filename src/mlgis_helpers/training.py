@@ -573,9 +573,7 @@ def train_model(
     task: str, # Task name for band selection
     *, #Force the following arguments to be keyword-only
     img_patches: str | None = None,  # TFRecord path for training data
-    msk_patches: np.ndarray | None = None,  # Unused (legacy parameter)
     val_img_patches: str | None = None,  # TFRecord path for validation data
-    val_msk_patches: np.ndarray | None = None,  # Unused (legacy parameter)
     paths: dict | None = None,  # Platform-specific paths dictionary
     patch_size: int | None = None,  # Patch size for display purposes
     pretrained_model_path: str | None = None,  # Path to pre-trained model file

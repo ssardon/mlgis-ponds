@@ -36,19 +36,9 @@ import time
 
 os.environ['TF_USE_LEGACY_KERAS'] = 'True'
 from tf_keras import backend as K
-
-from mlgis_helpers.cfg import parse_args, resolve_config_and_paths
-from mlgis_helpers.evaluation import (
-    print_summary,
-    plot_roc_comparison,
-    run_inference_style_validation
-)
+from mlgis_helpers import cfg, evaluation, training
 from mlgis_helpers.preprocess_tfrecord import create_tfrecords
-from mlgis_helpers.training import (
-    train_model,
-    setup_tensorflow,
-    seed_everything
-)
+
 
 # Setup
 # -----
@@ -63,8 +53,8 @@ DEFAULTS = {
 
 def prepare_environment_and_config(args):
     """Configure environment and host-aware paths."""
-    config, paths = resolve_config_and_paths(args)
-    setup_tensorflow(args.host)
+    config, paths = cfg.resolve_config_and_paths(args)
+    training.setup_tensorflow(args.host)
     print(f"Host:    {args.host}")
     print(f"Project: {args.project}")
     print(f"Task:    {args.task}")
@@ -117,14 +107,12 @@ def run_pipeline(config, paths, task, arch,
 
     # Train
     # -----
-    result = train_model(
+    result = training.train_model(
         config,
         paths['out_dir'],
         task,
         img_patches=train_tfrecord,
-        msk_patches=None, # Masks are embedded in 'train_tfrecord' (TODO: verify and drop this argument if so)
         val_img_patches=val_tfrecord,
-        val_msk_patches=None,
         paths=paths,
         patch_size=patch_size,
         pretrained_model_path=args.pretrained_model,
@@ -139,23 +127,24 @@ def run_pipeline(config, paths, task, arch,
     train_metrics = result["metrics"]
     model = result["model"]
     train_metrics["name"] = f"{task_config['architecture']}"
-    print_summary([train_metrics])
+    evaluation.print_summary([train_metrics])
     roc_path = os.path.join(paths['out_dir'], "roc_curve.png")
-    plot_roc_comparison([train_metrics], roc_path, config, task_config)
-
+    evaluation.plot_roc_comparison([train_metrics], roc_path,
+                                   config, task_config)
     # Simulate sliding windows (as in inference) to get F1-maximizing threshold
     config['current_host'] = config.get('host', 'mac')
-    postproc_metrics = run_inference_style_validation(model, config,
-                                                      task_config, paths)
-
+    post_metrics = evaluation.validate_inference_style(model,
+                                                             config,
+                                                             task_config,
+                                                             paths)
     _save_validation_artifacts(paths['out_dir'],
-                               train_metrics, postproc_metrics)
+                               train_metrics, post_metrics)
     print(f"\nValidation artifacts saved to: {paths['out_dir']}")
 
 def _save_validation_artifacts(
     out_dir: str,
     train_metrics: dict,
-    postproc_metrics: dict
+    post_metrics: dict
 ) -> None:
     "Save validation metrics to JSON and TXT."
     metrics_path_json = os.path.join(out_dir, 'val_metrics.json')
@@ -165,8 +154,8 @@ def _save_validation_artifacts(
     metrics_dict = {k: float(train_metrics[k])
                     for k in core_keys if k in train_metrics}
 
-    if postproc_metrics:
-        metrics_dict.update(postproc_metrics)
+    if post_metrics:
+        metrics_dict.update(post_metrics)
 
     # Write JSON (Easy to parse)
     with open(metrics_path_json, 'w') as f:
@@ -178,14 +167,14 @@ def _save_validation_artifacts(
         for k in core_keys:
             if k in train_metrics:
                 f.write(f"{k.capitalize()}: {train_metrics[k]:.4f}\n")
-        if postproc_metrics:
+        if post_metrics:
             f.write("\n--- Inference-Style Metrics (Post-Averaging) ---\n")
             # Filter for specific post-proc keys to keep order
             pp_keys = ('auc_postproc', 'precision_postproc',
                        'recall_postproc', 'f1_postproc', 'threshold_postproc')
             for k in pp_keys:
-                if k in postproc_metrics:
-                    f.write(f"{k}: {postproc_metrics[k]:.4f}\n")
+                if k in post_metrics:
+                    f.write(f"{k}: {post_metrics[k]:.4f}\n")
 
 # Define and call main function
 # -----------------------------
@@ -198,10 +187,10 @@ def main():
 
     # 1. Setup
     # --------
-    seed_everything(42)
+    training.seed_everything(42)
     K.set_image_data_format('channels_last')
 
-    args = parse_args(DEFAULTS)
+    args = cfg.parse_args(DEFAULTS)
     config, paths = prepare_environment_and_config(args)
 
     # 2. Data Loading

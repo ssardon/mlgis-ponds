@@ -23,3 +23,6 @@ ENV/
 outputs/
 data/
 models/
+
+# Whitelist labels
+!labels/

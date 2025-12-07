@@ -286,7 +286,7 @@ def write_metrics_txt(out_dir: str, metrics: dict, filename: str = 'test_metrics
     return path
 
 
-def run_inference_style_validation(model, config, task_config, paths):
+def validate_inference_style(model, config, task_config, paths):
     """
     Run inference-style validation on validation chunks with sliding-window averaging.
 
@@ -300,7 +300,7 @@ def run_inference_style_validation(model, config, task_config, paths):
         - precision_postproc: Precision at optimal threshold
         - recall_postproc: Recall at optimal threshold
     """
-    from mlgis_helpers.data_loading import read_bands_float32, grid_indices
+    from mlgis_helpers.data_management import read_bands_float32, grid_indices
 
     print("\n" + "="*60)
     print("INFERENCE-STYLE VALIDATION (post-averaging metrics)")
