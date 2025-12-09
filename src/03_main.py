@@ -28,7 +28,7 @@ Usage:
 
     #3. HPC Execution (Quest Node)
     python 03_train_model.py --host quest --task pondsNIR-S2024 --project avocados
-"""
+""" # noqa E501
 
 import json
 import os
@@ -78,7 +78,6 @@ def load_and_prep_data(config, paths, task, args):
                                         config['GLOBAL']['stride_ratio']),
         'cache_dir': paths['cache_dir'],
         'shape_path': paths['shape_path'],
-        'out_dir': paths['out_dir'],
         'task': task
     }
 

@@ -146,8 +146,6 @@ def _process_split(
             filtered_result = filter_to_ario_proximity(
                 img, msk, coords,
                 image_path=image_path,
-                patch_size=base_params['patch_size'],
-                stride_ratio=base_params['stride_ratio'],
                 ario_shapefile=ario_shapefile,
                 max_distance_km=1
             )

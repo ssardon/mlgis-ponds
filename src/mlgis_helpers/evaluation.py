@@ -12,7 +12,7 @@ import geopandas as gpd
 from rasterio.features import rasterize
 from sklearn.metrics import roc_curve, roc_auc_score, precision_score, recall_score, f1_score, precision_recall_curve
 from tqdm.auto import tqdm
-
+import time
 
 def plot_metric_progress(progress, out_path, title, config):
     """
@@ -457,3 +457,71 @@ def validate_inference_style(model, config, task_config, paths):
         'precision_postproc': precision_postproc,
         'recall_postproc': recall_postproc
     }
+# -----------------------------------------------------------------------------
+# Helpers used in training module's orchestrator
+# [FORMERLY in VI: Evaluation Helpers in training.py]
+# -----------------------------------------------------------------------------
+
+def _generate_patience_curve(history, epoch_times, out_dir, config):
+    """Generate patience curve showing AUC vs runtime."""
+    val_auc_history = history.history.get('val_auc', [])
+    if not val_auc_history:
+        print("No validation AUC history available for patience curve")
+        return
+
+    max_patience = config['GLOBAL']['patience']
+    patience_values, stop_times, best_aucs, stop_epochs = [], [], [], []
+
+    print(f"\nSimulating EarlyStopping for patience 1 to {max_patience}")
+    for patience in range(1, max_patience + 1):
+        wait_counter = 0
+        best_auc_so_far = 0
+        stop_epoch = len(val_auc_history)
+
+        for epoch, current_auc in enumerate(val_auc_history):
+            if current_auc > best_auc_so_far:
+                best_auc_so_far = current_auc
+                wait_counter = 0
+            else:
+                wait_counter += 1
+
+            if wait_counter >= patience:
+                stop_epoch = epoch + 1
+                break
+
+        final_auc = max(val_auc_history[:stop_epoch])
+        final_runtime = (
+            epoch_times[stop_epoch - 1] if stop_epoch > 0 else 0
+        )
+
+        patience_values.append(patience)
+        stop_times.append(final_runtime)
+        best_aucs.append(final_auc)
+        stop_epochs.append(stop_epoch)
+
+    print("Simulation complete.")
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(
+        stop_times, best_aucs, marker='o', linestyle='-', color='#1f77b4',
+        linewidth=2, markersize=4, label='Performance Trajectory'
+    )
+
+    actual_idx = max_patience - 1
+    ax.plot(
+        stop_times[actual_idx], best_aucs[actual_idx],
+        color='red', marker='*', markersize=12,
+        label=f'Actual (p={max_patience})'
+    )
+
+    ax.set_title('Patience Curve')
+    ax.set_xlabel('Total Training Time (seconds)')
+    ax.set_ylabel('Best Validation AUC')
+    ax.legend()
+
+    output_path = os.path.join(out_dir, 'patience_curve.png')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"\nArtifact generated and saved to: {output_path}")
+
+

@@ -20,7 +20,7 @@ def parse_args(defaults: Dict[str, Any]) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, choices=['mac', 'quest', 'farm'])
-    parser.add_argument("--project", type=str, choices=['mines', 'avocados'])
+    parser.add_argument("--project", type=str, choices=['avocados'])
     parser.add_argument("--task", type=str)
     parser.add_argument("--arch", type=str)
     parser.add_argument("--quick", action="store_true")
