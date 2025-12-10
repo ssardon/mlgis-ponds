@@ -737,7 +737,8 @@ def train_model(
             meta = json.load(f)
         train_examples = meta['train_count']
         val_examples = meta['val_count']
-        print(f"Loaded counts from metadata: train={train_examples}, val={val_examples}")
+        print("Loaded counts from metadata:")
+        print("train={train_examples}, val={val_examples}")
     else:
         print("No metadata.json found, scanning TFRecords...")
         train_examples = sum(1 for _ in tf.data.TFRecordDataset(img_patches))

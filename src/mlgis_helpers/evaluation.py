@@ -201,13 +201,13 @@ def plot_metric_progress(progress, out_path, title, config):
     """
     # Align list lengths to avoid plotting errors
     required_keys = ["epoch", "auc", "precision", "recall", "f1", "time"]
-    available_keys = [k for k in required_keys if k in progress and len(progress[k]) > 0]
-    
+    available_keys = [k for k in required_keys if k in progress and len(progress[k]) > 0] #noqa: E501
+
     if "train_auc" in progress and len(progress["train_auc"]) > 0:
         available_keys.append("train_auc")
-    
+
     min_len = min(len(progress[k]) for k in available_keys)
-    
+
     for k in available_keys:
         progress[k] = progress[k][:min_len]
 
@@ -217,7 +217,8 @@ def plot_metric_progress(progress, out_path, title, config):
     # Primary y-axis: metrics
     ax1.plot(epochs, progress["auc"], label="Val AUC", linewidth=2)
     if "train_auc" in progress and len(progress["train_auc"]) >= min_len:
-        ax1.plot(epochs, progress["train_auc"], label="Train AUC", linestyle='--', alpha=0.7)
+        ax1.plot(epochs, progress["train_auc"], label="Train AUC",
+                 linestyle='--', alpha=0.7)
     ax1.plot(epochs, progress["precision"], label="Precision")
     ax1.plot(epochs, progress["recall"], label="Recall")
     ax1.plot(epochs, progress["f1"], label="F1-score")
@@ -231,10 +232,10 @@ def plot_metric_progress(progress, out_path, title, config):
 
     # Unified legend
     lines = ax1.get_lines() + ax2.get_lines()
-    labels = [l.get_label() for l in lines]
+    labels = [line.get_label() for line in lines]
     ax1.legend(lines, labels, loc="lower right", frameon=False)
     ax1.set_title(title or "Validation metrics over epochs")
-    
+
     # Set x-axis to show full epoch range from config
     max_epochs = config['GLOBAL']['num_epochs']  # Direct access
     ax1.set_xlim(0, max_epochs + 1)
@@ -285,7 +286,8 @@ def plot_roc_comparison(metrics_list, output_path, config, task_config=None):
     plt.grid(alpha=0.3)
 
     # Add settings text
-    patch_size_text = f"PATCH_SIZE={task_config['patch_size']}; " if task_config else ""
+    msg = f"PATCH_SIZE={task_config['patch_size']}; "
+    patch_size_text = msg if task_config else ""
     settings_text = (f"Settings: {patch_size_text}"
                     f"BATCH_SIZE={config['GLOBAL']['batch_size']}; "
                     f"epochs={config['GLOBAL']['num_epochs']} "
@@ -302,7 +304,7 @@ def plot_roc_comparison(metrics_list, output_path, config, task_config=None):
 
 def plot_patience_curve(history, epoch_times, out_dir, config):
     """
-    Generate patience curve showing AUC vs runtime for different patience levels.
+    Generate patience curve w/ AUC vs runtime for different patience levels.
     """
     val_auc_history = history.history.get('val_auc', [])
     if not val_auc_history:
@@ -356,17 +358,18 @@ def plot_patience_curve(history, epoch_times, out_dir, config):
 
     # Annotate points
     annotate_points = []
-    for p in range(1, 6): 
-        if p <= max_patience: annotate_points.append(p)
-    for p in range(10, max_patience + 1, 5): 
+    for p in range(1, 6):
+        if p <= max_patience:
+            annotate_points.append(p)
+    for p in range(10, max_patience + 1, 5):
         annotate_points.append(p)
-    if max_patience not in annotate_points: 
+    if max_patience not in annotate_points:
         annotate_points.append(max_patience)
 
     for p in annotate_points:
         if p <= len(patience_values):
             idx = p - 1
-            ax.text(stop_times[idx], best_aucs[idx] + 0.0002, f'p={p}', 
+            ax.text(stop_times[idx], best_aucs[idx] + 0.0002, f'p={p}',
                    ha='center', va='bottom', fontsize=8, fontweight='bold')
 
     ax.set_title('Patience Curve')
@@ -385,10 +388,12 @@ def plot_patience_curve(history, epoch_times, out_dir, config):
 
 def validate_inference_style(model, config, task_config, paths):
     """
-    Run inference-style validation on validation chunks with sliding-window averaging.
+    Run inference-style validation on validation chunks with sliding-window
+    averaging.
 
-    This mimics the full inference pipeline (04_inference.py) to compute metrics on
-    post-averaging probability maps, matching what Step 5 post-processing will see.
+    This mimics the full inference pipeline (04_inference.py) to compute
+    metrics on post-averaging probability maps, matching what Step 5
+    post-processing will see.
 
     Returns dict with post-averaging metrics:
         - auc_postproc: AUC on averaged probability maps
@@ -403,18 +408,21 @@ def validate_inference_style(model, config, task_config, paths):
 
     val_chunks = task_config.get('val_chunks', [])
     if not val_chunks:
-        print("WARNING: No val_chunks found in config, skipping inference-style validation")
+        print("WARNING: No val_chunks found in config,")
+        print("skipping inference-style validation")
         return None
 
     imagery_dir = paths.get('imagery_data_dir')
     labels_path = paths.get('shape_path')
 
     if not imagery_dir or not os.path.exists(imagery_dir):
-        print(f"WARNING: Imagery directory not found at {imagery_dir}, skipping inference-style validation")
+        print(f"WARNING: Imagery directory not found at {imagery_dir},")
+        print("skipping inference-style validation")
         return None
 
     if not labels_path or not os.path.exists(labels_path):
-        print(f"WARNING: Labels file not found at {labels_path}, skipping inference-style validation")
+        print(f"WARNING: Labels file not found at {labels_path},")
+        print("skipping inference-style validation")
         return None
 
     # Inference parameters
@@ -425,7 +433,7 @@ def validate_inference_style(model, config, task_config, paths):
     batch_size = config['GLOBAL'].get('batch_size_inf', 32)
 
     print(f"Validation chunks: {val_chunks}")
-    print(f"Patch size: {patch_size}, stride: {stride} (ratio: {stride_ratio})")
+    print(f"Patch size: {patch_size}, stride: {stride} (ratio: {stride_ratio})") #noqa: E501
     print(f"Bands: {bands}, batch size: {batch_size}")
 
     all_y_true = []
@@ -436,7 +444,7 @@ def validate_inference_style(model, config, task_config, paths):
         chunk_files = glob.glob(os.path.join(imagery_dir, chunk_pattern))
 
         if not chunk_files:
-            print(f"WARNING: No imagery found for chunk {chunk_name}, skipping")
+            print(f"WARNING: No imagery found for chunk {chunk_name}, skip")
             continue
 
         image_path = chunk_files[0]
@@ -451,14 +459,15 @@ def validate_inference_style(model, config, task_config, paths):
         image_data = np.clip(image_data, -1.0, 1.0)
 
         prob_map = np.zeros((height, width), dtype=np.float32)
-        count_map = np.zeros((height, width), dtype=np.uint16)  # uint16 to prevent overflow
+        count_map = np.zeros((height, width), dtype=np.uint16)
 
         rows = grid_indices(height, patch_size, stride)
         cols = grid_indices(width, patch_size, stride)
         patch_coords = [(r, c) for r in rows for c in cols]
 
         print(f"  Predicting {len(patch_coords)} patches...")
-        for i in tqdm(range(0, len(patch_coords), batch_size), desc=f"  {chunk_name}"):
+        for i in tqdm(range(0, len(patch_coords), batch_size),
+                      desc=f"  {chunk_name}"):
             batch_coords = patch_coords[i:i + batch_size]
             if not batch_coords:
                 continue
@@ -488,20 +497,21 @@ def validate_inference_style(model, config, task_config, paths):
         y_true_chunk = gt_mask[mask_eval].ravel()
         y_pred_chunk = prob_map[mask_eval].ravel()
 
-        print(f"  Evaluation pixels: {len(y_true_chunk):,} (positives: {y_true_chunk.sum():,}, {100*y_true_chunk.mean():.2f}%)")
+        print(f"  Evaluation pixels: {len(y_true_chunk):,}")
+        print(f"(positives: {y_true_chunk.sum():,}, {100*y_true_chunk.mean():.2f}%)") #noqa: E501
 
         all_y_true.append(y_true_chunk)
         all_y_pred.append(y_pred_chunk)
 
     if not all_y_true:
-        print("ERROR: No validation data collected, skipping inference-style validation")
+        print("ERROR: No validation data, skipping inf-style validation")
         return None
 
     y_true_all = np.concatenate(all_y_true)
     y_pred_all = np.concatenate(all_y_pred)
 
     print(f"\nTotal validation pixels: {len(y_true_all):,}")
-    print(f"Positive pixels: {y_true_all.sum():,} ({100*y_true_all.mean():.2f}%)")
+    print(f"Pos. pixels: {y_true_all.sum():,} ({100*y_true_all.mean():.2f}%)")
 
     if len(np.unique(y_true_all)) < 2:
         print("ERROR: Need both positive and negative samples for AUC")
