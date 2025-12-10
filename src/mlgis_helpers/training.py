@@ -18,7 +18,7 @@ from tf_keras import callbacks
 from sklearn.metrics import roc_curve
 
 # Local Application Imports
-from .evaluation import (_generate_patience_curve,
+from .evaluation import (plot_patience_curve,
                          plot_metric_progress,
                          optimize_threshold
 )
@@ -26,9 +26,7 @@ from .model import get_model
 
 # Constants
 AUTOTUNE = tf.data.AUTOTUNE
-PROFILE_BATCH = "100, 105"
 PROFILE_BATCH = "100, 105"  # profiler step window for TensorBoard
-VAL_SPLIT = 0.2             # validation split ratio
 
 
 # I. SETUP & CONFIGURATION
@@ -383,66 +381,58 @@ def get_task_params(config, task):
 
     # Required fields
     params = {
-        'neg_ratio': task_config['neg_ratio'],
         'pos_weight': task_config['pos_weight'],
-        'loss_function': task_config['loss_function']
+        'architecture': task_config.get('architecture', 'unet_tiny'),
+        'neg_ratio': task_config.get('neg_ratio', 1.0)
     }
 
     # Optional fields (pass through if present)
-    if 'architecture' in task_config:
-        params['architecture'] = task_config['architecture']
     if 'hparam_overrides' in task_config:
         params['hparam_overrides'] = task_config['hparam_overrides']
 
     return params
 
 
-def _calculate_optimal_pos_weight(ds, n_batches=100):
-    """Calculate optimal pos_weight from pixel-level imbalance."""
-    print("\n--- Calculating Optimal pos_weight from Pixel Imbalance ---")
-    
+def _calculate_optimal_pos_weight(ds, n_batches=50):
+    """
+    Calculate optimal pos_weight from pixel-level imbalance.
+    Also logs patch-level fraction for diagnostics (single pass).
+    """
+    print(f"\n--- Calculating Optimal pos_weight ({n_batches} batches) ---")
+
     total_pixels = 0
-    total_positive_pixels = 0
+    positive_pixels = 0
+    total_patches = 0
+    positive_patches = 0
 
     for i, (_, y) in enumerate(ds.take(n_batches)):
-        batch_positive_pixels = tf.reduce_sum(tf.cast(y > 0.5, tf.int32))
-        batch_total_pixels = tf.reduce_prod(tf.shape(y))
+        batch_pos_pix = tf.reduce_sum(tf.cast(y > 0.5, tf.int64)).numpy()
+        batch_total_pix = tf.reduce_prod(tf.shape(y)).numpy()
+        positive_pixels += batch_pos_pix
+        total_pixels += batch_total_pix
 
-        total_positive_pixels += batch_positive_pixels.numpy()
-        total_pixels += batch_total_pixels.numpy()
+        has_pos = tf.reduce_any(y > 0.5, axis=(1, 2, 3))
+        positive_patches += tf.reduce_sum(tf.cast(has_pos, tf.int32)).numpy()
+        total_patches += tf.shape(y)[0].numpy()
 
-        if i < 5:
-            batch_pos_frac = (
-                batch_positive_pixels.numpy() / batch_total_pixels.numpy()
-            )
+        if i < 3:
             print(
-                f"  Batch {i+1}: "
-                f"{batch_positive_pixels.numpy():,}/"
-                f"{batch_total_pixels.numpy():,} positive ({batch_pos_frac:.4f})"
+                f"  Batch {i+1}: {batch_pos_pix:,}/{batch_total_pix:,} px, "
+                f"{positive_patches}/{total_patches} patches"
             )
 
-    pixel_pos_fraction = total_positive_pixels / total_pixels
-    print(f"\nPixel-level statistics:")
-    print(f"  Total pixels: {total_pixels:,}")
-    print(f"  Positive pixels: {total_positive_pixels:,}")
-    print(f"  Positive fraction (p): {pixel_pos_fraction:.4f}")
+    pixel_frac = positive_pixels / total_pixels if total_pixels > 0 else 0.0
+    patch_frac = positive_patches / total_patches if total_patches > 0 else 0.0
 
-    if pixel_pos_fraction > 0:
-        optimal_pos_weight = (1.0 - pixel_pos_fraction) / pixel_pos_fraction
-        
-        # Cap at 100 to prevent gradient swamping
-        max_weight = 100.0
-        if optimal_pos_weight > max_weight:
-            print(f"  Raw calculated pos_weight: {optimal_pos_weight:.2f}")
-            optimal_pos_weight = max_weight
-            print(f"   Capped pos_weight to {max_weight}")
-        else:
-            print(f"  Calculated pos_weight: {optimal_pos_weight:.2f}")
-
-        return optimal_pos_weight, pixel_pos_fraction
+    if pixel_frac > 0:
+        pos_weight = min(100.0, (1.0 - pixel_frac) / pixel_frac)
     else:
         print("  WARNING: No positive pixels, using default pos_weight=1.0")
-        return 1.0, 0.0
+        pos_weight = 1.0
+
+    print(f"\nPixel: p={pixel_frac:.4f}, pos_weight={pos_weight:.2f}")
+    print(f"Patch: frac={patch_frac:.3f}")
+    return pos_weight, pixel_frac
 
 
 # VI: Diagnostic Helpers (Debugging and Verification)
@@ -505,40 +495,6 @@ def log_quantiles(data, label, percentiles=[0.1, 50, 99.9]):
     print(f"  Data shape: {data.shape}")
     print(f"  Data type: {data.dtype}")
     print(f"  Min/Max: [{data.min():.6f}, {data.max():.6f}]")
-
-
-def _measure_positive_fraction(ds, n_batches=50):
-    """Measure actual positive patch fraction in the dataset."""
-    print(f"Measuring positive fraction over {n_batches} batches...")
-
-    total_patches = tf.constant(0, dtype=tf.int32)
-    positive_patches = tf.constant(0, dtype=tf.int32)
-
-    for i, (_, y) in enumerate(ds.take(n_batches)):
-        # Check each patch: any positive pixel in mask
-        batch_positives = tf.reduce_sum(
-            tf.cast(tf.reduce_any(y > 0.5, axis=(1, 2)), tf.int32)
-        )
-        batch_size = tf.shape(y)[0]
-
-        positive_patches = positive_patches + batch_positives
-        total_patches = total_patches + batch_size
-
-        if i < 5:
-            print(
-                f"  Batch {i+1}: {batch_positives.numpy()}/"
-                f"{batch_size.numpy()} positive patches"
-            )
-
-    fraction = (
-        tf.cast(positive_patches, tf.float32) /
-        tf.cast(total_patches, tf.float32)
-    )
-    print(
-        f"Measured positive fraction: {fraction.numpy():.3f} "
-        f"({positive_patches.numpy()}/{total_patches.numpy()})"
-    )
-    return fraction
 
 
 def _verify_band_mapping(ds, bands_config, task_name):
@@ -610,9 +566,9 @@ def safe_predict(model, X, **kwargs):
     return pred
 
 
-def collect_val_metrics(model, val_ds, val_steps, batch_size):
+def collect_val_metrics(model, val_ds, val_steps):
     """Collect validation metrics efficiently in a single pass."""
-    print(f"\nComputing final validation metrics...")
+    print("\nComputing final validation metrics...")
     start_time = time.time()
 
     auc_metric = tf.keras.metrics.AUC()
@@ -715,7 +671,7 @@ def _save_final_results(
             config=config,
         )
 
-        _generate_patience_curve(history, tracking["times"], out_dir, config)
+        plot_patience_curve(history, tracking["times"], out_dir, config)
 
     final_metrics["train_time"] = train_time
     final_metrics["pred_time"] = pred_time
@@ -754,30 +710,41 @@ def train_model(
     print(f"Val TFRecord: {val_img_patches}")
 
     # 2. Dataset Creation
+    # Build raw dataset first for statistics (before any balancing)
+    raw_ds = (
+        tf.data.TFRecordDataset([img_patches], num_parallel_reads=AUTOTUNE)
+        .map(_parse_tfrecord_fn, num_parallel_calls=AUTOTUNE)
+        .batch(config["GLOBAL"]["batch_size"])
+    )
+
+    # 3. Diagnostics (on raw, unbalanced data - single pass)
+    optimal_pos_weight, _ = _calculate_optimal_pos_weight(raw_ds, n_batches=50)
+    task_config['pos_weight'] = optimal_pos_weight
+
+    # Now create training dataset (potentially balanced for mines)
     train_ds = _create_balanced_dataset(
-        img_patches, config["GLOBAL"]["batch_size"]
+        img_patches, config["GLOBAL"]["batch_size"], task=task
     )
     val_ds = _make_standard_dataset(
         val_img_patches, config["GLOBAL"]["batch_size"]
     )
 
-    # 3. Diagnostics
-    measured_frac = _measure_positive_fraction(train_ds, n_batches=20)
-    print(f"Natural positive fraction: {measured_frac.numpy():.3f}")
-
     _verify_band_mapping(val_ds, bands, task)
 
-    optimal_pos_weight, _ = _calculate_optimal_pos_weight(
-        train_ds, n_batches=50
-    )
-    task_config['pos_weight'] = optimal_pos_weight
+    # 4. Step Calculation (read from metadata if available)
+    import json
+    metadata_path = os.path.join(os.path.dirname(img_patches), 'metadata.json')
+    if os.path.exists(metadata_path):
+        with open(metadata_path) as f:
+            meta = json.load(f)
+        train_examples = meta['train_count']
+        val_examples = meta['val_count']
+        print(f"Loaded counts from metadata: train={train_examples}, val={val_examples}")
+    else:
+        print("No metadata.json found, scanning TFRecords...")
+        train_examples = sum(1 for _ in tf.data.TFRecordDataset(img_patches))
+        val_examples = sum(1 for _ in tf.data.TFRecordDataset(val_img_patches))
 
-    # 4. Step Calculation
-    def _count_examples(path):
-        return sum(1 for _ in tf.data.TFRecordDataset(path))
-
-    train_examples = _count_examples(img_patches)
-    val_examples = _count_examples(val_img_patches)
     bs = config["GLOBAL"]["batch_size"]
 
     steps_per_epoch = max(1, train_examples // bs)
@@ -796,14 +763,23 @@ def train_model(
     if architecture == 'resnet50_unet' and num_channels != 3:
         raise ValueError("ResNet50 requires exactly 3 bands.")
 
-    print(f"\nBuilding model: {architecture}")
+    input_shape = (patch_size, patch_size, num_channels)
+    print(f"\nBuilding model: {architecture}, input_shape={input_shape}")
 
     if pretrained_model_path:
         if not os.path.exists(pretrained_model_path):
             raise FileNotFoundError(f"Missing: {pretrained_model_path}")
         model = keras.models.load_model(pretrained_model_path, compile=False)
+        if model.input_shape[1:] != input_shape:
+            raise ValueError(
+                f"Pretrained model shape {model.input_shape[1:]} != "
+                f"expected {input_shape}"
+            )
     else:
-        model = get_model(config, paths=paths, architecture=architecture)
+        model = get_model(
+            config, paths=paths, architecture=architecture,
+            input_shape=input_shape
+        )
 
     # 6. Compilation
     hparams = config['GLOBAL']['ARCHITECTURE_HPARAMS'][architecture].copy()
