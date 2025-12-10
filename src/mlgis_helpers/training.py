@@ -620,9 +620,7 @@ def _save_final_results(
     """Save final metrics and plots."""
     if val_ds is not None and val_steps is not None:
         pred_start = time.time()
-        metrics = collect_val_metrics(
-            model, val_ds, val_steps, config['GLOBAL']['batch_size']
-        )
+        metrics = collect_val_metrics(model, val_ds, val_steps)
         pred_time = time.time() - pred_start
 
         final_metrics = {

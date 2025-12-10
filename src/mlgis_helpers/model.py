@@ -431,19 +431,18 @@ def build_unet_heavy(input_shape, config, arch_type='unet_heavy'):
     return model
 
 
-def get_model(config, paths, architecture):
+def get_model(config, paths, architecture, input_shape):
     """
     Get model instance based on configuration.
+
+    Args:
+        config: Full config dict
+        paths: Paths dict
+        architecture: Model architecture name
+        input_shape: Tuple (H, W, C) for model input
     """
-    task = config['task']  # Direct access - crash if missing
-    # Bands are now in TASKS section
-    task_config = config['TASKS'][task]
-    num_channels = len(task_config['bands'])
-
-    input_shape = (task_config['patch_size'], task_config['patch_size'], num_channels)
-
     arch = architecture
-    print(f"Building model: {arch}...")
+    print(f"Building model: {arch}, input_shape={input_shape}...")
 
     if arch == 'unet':
         model = build_unet(input_shape, config)

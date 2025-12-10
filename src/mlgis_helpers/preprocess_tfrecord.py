@@ -224,7 +224,9 @@ def create_tfrecords(
     _print_patch_statistics(t_msk, "train")
 
     d_train = int(config.get('GLOBAL', {}).get('mask_dilation_train', 0))
-    _write_patches_to_tfrecord(t_img, t_msk, train_out, 'train', d_train)
+    train_count = _write_patches_to_tfrecord(
+        t_img, t_msk, train_out, 'train', d_train
+    )
 
     # Free memory
     del t_img, t_msk
@@ -235,6 +237,15 @@ def create_tfrecords(
     _print_patch_statistics(v_msk, "val")
 
     d_val = int(config.get('GLOBAL', {}).get('mask_dilation_val', 0))
-    _write_patches_to_tfrecord(v_img, v_msk, val_out, 'val', d_val)
+    val_count = _write_patches_to_tfrecord(
+        v_img, v_msk, val_out, 'val', d_val
+    )
+
+    # Write metadata for fast loading (avoids re-scanning TFRecords)
+    import json
+    metadata_path = os.path.join(record_dir, 'metadata.json')
+    with open(metadata_path, 'w') as f:
+        json.dump({'train_count': train_count, 'val_count': val_count}, f)
+    print(f"Metadata written: {metadata_path}")
 
     return train_out, val_out
